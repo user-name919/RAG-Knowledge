@@ -1,8 +1,11 @@
+# 固定 Compose 项目名，统一容器、网络和持久化卷的命名。
 name: team-rag
+# 复用容器内连接配置。容器间用服务名寻址，不能使用宿主机的 127.0.0.1。
 x-app-env: &app-env
   DATABASE_URL: mysql+pymysql://rag:${MYSQL_PASSWORD:?run scripts/init_env.py}@mysql:3306/rag?charset=utf8mb4
   ES_URL: http://elasticsearch:9200
 services:
+  # 保存权威 QA、授权和任务队列；不在 MySQL 中执行向量检索。
   mysql:
     image: mysql:8.4.8
     environment:
@@ -10,32 +13,41 @@ services:
       MYSQL_USER: rag
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?run scripts/init_env.py}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?run scripts/init_env.py}
+    # 仅绑定本机回环地址；3307 避免占用宿主机常见的 3306。
     ports: ["127.0.0.1:3307:3306"]
     volumes: ["mysql_data:/var/lib/mysql"]
+    # 使用 utf8mb4 支持中文和 emoji，并限制开发实例的缓冲池。
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M"]
     healthcheck:
+      # 双美元符号让变量在容器中展开；这里验证应用账号能查询数据库，而不只是端口已打开。
       test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u rag -D rag -e 'SELECT 1' >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 30
     mem_limit: 1g
+  # 全文与向量共用一个 ES 实例；当前是本机开发配置，不可直接暴露公网。
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.19.22
     environment:
       discovery.type: single-node
+      # 本机隔离环境关闭 ES 自身认证；API 层仍鉴权，部署到服务器需另配 ES 安全策略。
       xpack.security.enabled: "false"
+      # 固定 1GB JVM 堆；ES 总内存还包含堆外和文件缓存，不能把此值当作总占用。
       ES_JAVA_OPTS: -Xms1g -Xmx1g
     ports: ["127.0.0.1:9200:9200"]
     volumes: ["es_data:/usr/share/elasticsearch/data"]
     healthcheck:
+      # 单节点允许 yellow；若存在副本，单节点不能保证副本分配完成。
       test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=3s' >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 40
     mem_limit: 2500m
+  # 对外提供管理和 recall 接口；依赖 MySQL/ES 健康后启动。
   api:
     image: team-rag-local:dev
     build: .
+    # 加载本地凭据；environment 锚点覆盖其中的宿主机数据库/ES 地址。
     env_file: .env
     environment: *app-env
     ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
@@ -48,15 +60,18 @@ services:
       timeout: 5s
       retries: 20
     mem_limit: 512m
+  # 独立进程持续消费索引任务，与 API 共用代码和数据库，不监听外部业务端口。
   worker:
     image: team-rag-local:dev
     build: .
     env_file: .env
     environment: *app-env
+    # 覆盖 Dockerfile 默认的 Uvicorn 启动命令，改为索引任务循环。
     command: ["python", "-m", "app.worker"]
     depends_on:
       api: {condition: service_healthy}
     mem_limit: 512m
+# 命名卷在容器重建后保留数据；docker compose down -v 会删除它们。
 volumes:
   mysql_data:
   es_data:

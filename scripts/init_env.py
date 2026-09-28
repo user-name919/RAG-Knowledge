@@ -1,3 +1,6 @@
+# 本地初始化入口：生成随机数据库密码和管理员 Key，保留 Embedding Key 空值供用户填写。
+# 仅创建不存在的 .env；不覆盖已有配置，不打印生成的凭据。
+
 """Create private local settings without displaying secrets or overwriting a file."""
 import os
 from pathlib import Path
@@ -12,6 +15,7 @@ else:
     content = content.replace('replace-with-random-root-password', secrets.token_hex(24))
     content = content.replace('replace-with-random-app-password', secrets.token_hex(24))
     content = content.replace('replace-with-random-admin-key', secrets.token_urlsafe(32))
+    # O_EXCL 避免并发初始化覆盖已有文件；0600 限制为当前用户可读写。
     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, 'w') as f:
         f.write(content)

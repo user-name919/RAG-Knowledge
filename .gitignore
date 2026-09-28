@@ -1,9 +1,13 @@
+# 排除本地凭据；下方显式保留无密钥的 .env.example。
 .env
 .env.*
 !.env.example
+# 虚拟环境由依赖清单重建，不纳入源码仓库。
 .venv/
+# 排除 Python 和 pytest 生成的缓存。
 __pycache__/
 .pytest_cache/
 *.pyc
+# 排除演示库 ID、本地评测结果和其他运行期数据。
 data/
 .DS_Store

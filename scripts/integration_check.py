@@ -1,3 +1,6 @@
+# 真实 MySQL/ES 集成验证。只替换 Embedding 输出，不调用云模型。
+# 使用专属测试知识库与索引并在 finally 清理；运行前应停止常驻 Worker，避免争抢测试任务。
+
 """Real MySQL + real ES, synthetic vectors. No external model call or quality claim."""
 from pathlib import Path
 import sys
@@ -16,20 +19,24 @@ from app.search import SearchStore
 from app.worker import claim_task, process_task
 
 settings = get_settings()
+# 暂存默认索引名，后面所有 ES 操作切换到本次随机命名的测试索引。
 old_index = settings.es_index
 settings.es_index = 'team-rag-integration-' + uuid4().hex
 original_embed = EmbeddingClient.embed
 kb_ids = []
 
 
+# 生成固定测试向量以验证索引维度和传输链路，不测试真实语义区分能力。
 def fixture_vectors(self, texts, query=False):
     # Orthogonal fixture vectors test transport, index dimensions, filtering and lifecycle only.
     return [[1.0] + [0.0] * (settings.embedding_dimensions - 1) for t in texts]
 
 
+# 仅当前测试进程替换模型方法；finally 恢复，避免后续调用误用测试向量。
 EmbeddingClient.embed = fixture_vectors
 try:
     with TestClient(app, headers={'api-key': settings.admin_api_key}) as client:
+        # 调用测试客户端并在 HTTP 错误时停止，保留路径和截断后的错误信息用于排查。
         def request(method, path, **kwargs):
             response = client.request(method, path, **kwargs)
             if response.is_error:
@@ -51,13 +58,16 @@ try:
         # Test concurrent MySQL SKIP LOCKED claims against a filtered session subclass.
         from sqlalchemy.orm import Session, sessionmaker
         from sqlalchemy import event
+        # 为集成任务领取建立专属会话类型，限定测试的查询范围，不改变生产 SessionLocal。
         class FixtureSession(Session):
             pass
+        # 仅给 IndexTask 查询加测试 QA 范围，防止脚本领取已有业务任务。
         @event.listens_for(FixtureSession, 'do_orm_execute')
         def restrict_tasks(state):
             if state.is_select and any(d.get('entity') is IndexTask for d in state.statement.column_descriptions):
                 state.statement = state.statement.where(IndexTask.qa_id.in_([q['id'] for q in batch]))
         fixture_factory = sessionmaker(bind=SessionLocal.kw['bind'], class_=FixtureSession, expire_on_commit=False)
+        # 短暂轮询等待任务可领取；MySQL DATETIME 精度可能让当前时间被舍入到下一秒。
         def await_claim():
             # MySQL DATETIME has second precision; immediate eligibility can round up.
             for _ in range(30):
@@ -73,6 +83,7 @@ try:
             process_task(*claim, factory=fixture_factory)
         states = request('GET', path + '/index_status')['data']
         assert all(s['index_status'] == 'ready' for s in states), states
+        # 以错误码加标签检索，要求结果同时包含非零关键词和向量分数，验证两条分支确实运行。
         body = {'knowledge_base_ids': [kb], 'document_ids': [doc], 'query': 'TASK_403', 'retrieval_options': {'tags': ['运维']}}
         result = request('POST', '/v1/knowledge_bases/recall', json=body)
         assert result['total'] == 1, result
@@ -95,6 +106,7 @@ try:
         print('Synthetic vectors only: real Embedding connectivity and semantic quality remain unverified.')
 finally:
     EmbeddingClient.embed = original_embed
+    # 按外键依赖顺序清理任务、QA、文档及知识库；只清理本次创建的记录。
     with SessionLocal() as db, db.begin():
         docs = list(db.scalars(select(Document.id).where(Document.knowledge_base_id.in_(kb_ids))))
         qas = list(db.scalars(select(QAPair.id).where(QAPair.document_id.in_(docs))))
