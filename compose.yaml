@@ -1,0 +1,62 @@
+name: team-rag
+x-app-env: &app-env
+  DATABASE_URL: mysql+pymysql://rag:${MYSQL_PASSWORD:?run scripts/init_env.py}@mysql:3306/rag?charset=utf8mb4
+  ES_URL: http://elasticsearch:9200
+services:
+  mysql:
+    image: mysql:8.4.8
+    environment:
+      MYSQL_DATABASE: rag
+      MYSQL_USER: rag
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?run scripts/init_env.py}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?run scripts/init_env.py}
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: ["mysql_data:/var/lib/mysql"]
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u rag -D rag -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1g
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.22
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports: ["127.0.0.1:9200:9200"]
+    volumes: ["es_data:/usr/share/elasticsearch/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=3s' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 40
+    mem_limit: 2500m
+  api:
+    image: team-rag-local:dev
+    build: .
+    env_file: .env
+    environment: *app-env
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+    depends_on:
+      mysql: {condition: service_healthy}
+      elasticsearch: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    mem_limit: 512m
+  worker:
+    image: team-rag-local:dev
+    build: .
+    env_file: .env
+    environment: *app-env
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      api: {condition: service_healthy}
+    mem_limit: 512m
+volumes:
+  mysql_data:
+  es_data:

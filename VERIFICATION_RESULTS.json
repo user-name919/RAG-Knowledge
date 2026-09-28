@@ -1,0 +1,67 @@
+{
+  "scope": "7 fictional queries over 3 fictional QA records; smoke test only, not business accuracy",
+  "model": "BAAI/bge-large-zh-v1.5",
+  "weights": {
+    "vector": 0.8,
+    "keyword": 0.2
+  },
+  "top1_correct": 7,
+  "total": 7,
+  "results": [
+    {
+      "query": "题布置下去了，孩子那边怎么没显示？",
+      "expected_external_id": "demo-assignment-visibility",
+      "top_external_id": "demo-assignment-visibility",
+      "top1_correct": true,
+      "top_score": 0.6917973327033856
+    },
+    {
+      "query": "学生说找不到我刚发的练习",
+      "expected_external_id": "demo-assignment-visibility",
+      "top_external_id": "demo-assignment-visibility",
+      "top1_correct": true,
+      "top_score": 0.701324868374256
+    },
+    {
+      "query": "作业定时发布还没到时间学生能看到吗",
+      "expected_external_id": "demo-assignment-visibility",
+      "top_external_id": "demo-assignment-visibility",
+      "top1_correct": true,
+      "top_score": 0.7576314287368608
+    },
+    {
+      "query": "发布失败显示 TASK_403",
+      "expected_external_id": "demo-permission",
+      "top_external_id": "demo-permission",
+      "top1_correct": true,
+      "top_score": 0.7759797619431612
+    },
+    {
+      "query": "老师账号没有班级发布权限怎么办",
+      "expected_external_id": "demo-permission",
+      "top_external_id": "demo-permission",
+      "top1_correct": true,
+      "top_score": 0.7402612542341626
+    },
+    {
+      "query": "接口一直等不到响应，排查哪些日志",
+      "expected_external_id": "demo-timeout",
+      "top_external_id": "demo-timeout",
+      "top1_correct": true,
+      "top_score": 0.7453305129355892
+    },
+    {
+      "query": "作业服务请求超时，数据库连接池要检查吗",
+      "expected_external_id": "demo-timeout",
+      "top_external_id": "demo-timeout",
+      "top1_correct": true,
+      "top_score": 0.766852708525365
+    }
+  ],
+  "unanswerable_probe": {
+    "query": "公司差旅酒店报销限额是多少？",
+    "returned": 3,
+    "top_score": 0.51126368,
+    "note": "Default threshold is 0. Unrelated results are expected; calibrate with business negative examples before answer generation."
+  }
+}

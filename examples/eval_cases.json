@@ -1,0 +1,9 @@
+[
+  {"query": "题布置下去了，孩子那边怎么没显示？", "expected_external_id": "demo-assignment-visibility"},
+  {"query": "学生说找不到我刚发的练习", "expected_external_id": "demo-assignment-visibility"},
+  {"query": "作业定时发布还没到时间学生能看到吗", "expected_external_id": "demo-assignment-visibility"},
+  {"query": "发布失败显示 TASK_403", "expected_external_id": "demo-permission"},
+  {"query": "老师账号没有班级发布权限怎么办", "expected_external_id": "demo-permission"},
+  {"query": "接口一直等不到响应，排查哪些日志", "expected_external_id": "demo-timeout"},
+  {"query": "作业服务请求超时，数据库连接池要检查吗", "expected_external_id": "demo-timeout"}
+]
