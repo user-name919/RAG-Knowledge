@@ -15,152 +15,152 @@ tags:
 
 <h4 align="center">
     <p>
-        <a href=#model-list>Model List</a> |
-        <a href=#frequently-asked-questions>FAQ</a> |
-        <a href=#usage>Usage</a>  |
-        <a href="#evaluation">Evaluation</a> |
-        <a href="#train">Train</a> |
-        <a href="#contact">Contact</a> |
-        <a href="#citation">Citation</a> |
-        <a href="#license">License</a>
+        <a href=#模型列表>模型列表</a> |
+        <a href=#常见问题>常见问题</a> |
+        <a href=#使用方法>使用方法</a>  |
+        <a href="#评测">评测</a> |
+        <a href="#训练">训练</a> |
+        <a href="#联系我们">联系我们</a> |
+        <a href="#引用">引用</a> |
+        <a href="#许可证">许可证</a>
     <p>
 </h4>
 
-For more details please refer to our Github: [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding).
+更多细节请参阅我们的 Github：[FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding)。
 
-If you are looking for a model that supports more languages, longer texts, and other retrieval methods, you can try using [bge-m3](https://huggingface.co/BAAI/bge-m3).
+如果你需要支持更多语言、更长文本以及其他检索方式的模型，可以尝试使用 [bge-m3](https://huggingface.co/BAAI/bge-m3)。
 
 
 [English](README.md) | [中文](https://github.com/FlagOpen/FlagEmbedding/blob/master/README_zh.md)
 
-FlagEmbedding focuses on retrieval-augmented LLMs, consisting of the following projects currently:
+FlagEmbedding 专注于检索增强的大语言模型（retrieval-augmented LLMs），目前包含以下项目：
 
-- **Long-Context LLM**: [Activation Beacon](https://github.com/FlagOpen/FlagEmbedding/tree/master/Long_LLM/activation_beacon)
-- **Fine-tuning of LM** : [LM-Cocktail](https://github.com/FlagOpen/FlagEmbedding/tree/master/LM_Cocktail)
-- **Dense Retrieval**: [BGE-M3](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3), [LLM Embedder](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/llm_embedder), [BGE Embedding](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/baai_general_embedding)
-- **Reranker Model**: [BGE Reranker](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/reranker)
-- **Benchmark**: [C-MTEB](https://github.com/FlagOpen/FlagEmbedding/tree/master/C_MTEB)
+- **长上下文 LLM**： [Activation Beacon](https://github.com/FlagOpen/FlagEmbedding/tree/master/Long_LLM/activation_beacon)
+- **语言模型微调**： [LM-Cocktail](https://github.com/FlagOpen/FlagEmbedding/tree/master/LM_Cocktail)
+- **稠密检索**： [BGE-M3](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3)、[LLM Embedder](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/llm_embedder)、[BGE Embedding](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/baai_general_embedding)
+- **重排序模型**： [BGE Reranker](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/reranker)
+- **评测基准**： [C-MTEB](https://github.com/FlagOpen/FlagEmbedding/tree/master/C_MTEB)
 
-## News
-- 1/30/2024: Release **BGE-M3**, a new member to BGE model series! M3 stands for **M**ulti-linguality (100+ languages), **M**ulti-granularities (input length up to 8192), **M**ulti-Functionality (unification of dense, lexical, multi-vec/colbert retrieval).
-It is the first embedding model which supports all three retrieval methods, achieving new SOTA on multi-lingual (MIRACL) and cross-lingual (MKQA) benchmarks.
-[Technical Report](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/BGE_M3/BGE_M3.pdf) and [Code](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3). :fire:
-- 1/9/2024: Release [Activation-Beacon](https://github.com/FlagOpen/FlagEmbedding/tree/master/Long_LLM/activation_beacon), an effective, efficient, compatible, and low-cost (training) method to extend the context length of LLM. [Technical Report](https://arxiv.org/abs/2401.03462) :fire:
-- 12/24/2023: Release **LLaRA**, a LLaMA-7B based dense retriever, leading to state-of-the-art performances on MS MARCO and BEIR. Model and code will be open-sourced. Please stay tuned. [Technical Report](https://arxiv.org/abs/2312.15503) :fire:
-- 11/23/2023: Release [LM-Cocktail](https://github.com/FlagOpen/FlagEmbedding/tree/master/LM_Cocktail), a method to maintain general capabilities during fine-tuning by merging multiple language models. [Technical Report](https://arxiv.org/abs/2311.13534) :fire:
-- 10/12/2023: Release [LLM-Embedder](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/llm_embedder), a unified embedding model to support diverse retrieval augmentation needs for LLMs. [Technical Report](https://arxiv.org/pdf/2310.07554.pdf)
-- 09/15/2023: The [technical report](https://arxiv.org/pdf/2309.07597.pdf) and [massive training data](https://data.baai.ac.cn/details/BAAI-MTP) of BGE has been released
-- 09/12/2023: New models:
-    - **New reranker model**: release cross-encoder models `BAAI/bge-reranker-base` and `BAAI/bge-reranker-large`, which are more powerful than embedding model. We recommend to use/fine-tune them to re-rank top-k documents returned by embedding models.
-    - **update embedding model**: release `bge-*-v1.5` embedding model to alleviate the issue of the similarity distribution, and enhance its retrieval ability without instruction.
+## 更新动态
+- 2024/1/30：发布 **BGE-M3**，BGE 系列新成员！M3 代表 **M**ulti-linguality（多语言，支持 100+ 种语言）、**M**ulti-granularities（多粒度，输入长度最长 8192）、**M**ulti-Functionality（多功能，统一稠密、稀疏、多向量/ColBERT 检索）。
+这是首个同时支持三种检索方法的嵌入模型，并在多语言（MIRACL）与跨语言（MKQA）基准上取得新的 SOTA。
+[技术报告](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/BGE_M3/BGE_M3.pdf) 与 [代码](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3)。 :fire:
+- 2024/1/9：发布 [Activation-Beacon](https://github.com/FlagOpen/FlagEmbedding/tree/master/Long_LLM/activation_beacon)，一种有效、高效、兼容且训练成本低的方法，用于扩展 LLM 的上下文长度。[技术报告](https://arxiv.org/abs/2401.03462) :fire:
+- 2023/12/24：发布 **LLaRA**，基于 LLaMA-7B 的稠密检索器，在 MS MARCO 与 BEIR 上达到领先性能。模型与代码即将开源，敬请期待。[技术报告](https://arxiv.org/abs/2312.15503) :fire:
+- 2023/11/23：发布 [LM-Cocktail](https://github.com/FlagOpen/FlagEmbedding/tree/master/LM_Cocktail)，通过合并多个语言模型，在微调过程中保持通用能力的方法。[技术报告](https://arxiv.org/abs/2311.13534) :fire:
+- 2023/10/12：发布 [LLM-Embedder](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/llm_embedder)，统一的嵌入模型，支持 LLM 多样化的检索增强需求。[技术报告](https://arxiv.org/pdf/2310.07554.pdf)
+- 2023/09/15：BGE 的 [技术报告](https://arxiv.org/pdf/2309.07597.pdf) 与 [大规模训练数据](https://data.baai.ac.cn/details/BAAI-MTP) 已发布
+- 2023/09/12：新模型：
+    - **新的重排序模型**：发布交叉编码器模型 `BAAI/bge-reranker-base` 与 `BAAI/bge-reranker-large`，比嵌入模型更强。建议用它们对嵌入模型召回的 top-k 文档进行重排序，也可对其进行微调。
+    - **更新嵌入模型**：发布 `bge-*-v1.5` 嵌入模型，缓解相似度分布问题，并在不使用 instruction 时增强检索能力。
 
 
 <details>
-  <summary>More</summary>
-<!-- ### More -->
+  <summary>更多</summary>
+<!-- ### 更多 -->
 
-- 09/07/2023: Update [fine-tune code](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/baai_general_embedding/README.md): Add script to mine hard negatives and support adding instruction during fine-tuning.
-- 08/09/2023: BGE Models are integrated into **Langchain**, you can use it like [this](#using-langchain); C-MTEB **leaderboard** is [available](https://huggingface.co/spaces/mteb/leaderboard).
-- 08/05/2023: Release base-scale and small-scale models, **best performance among the models of the same size 🤗**
-- 08/02/2023: Release `bge-large-*`(short for BAAI General Embedding) Models, **rank 1st on MTEB and C-MTEB benchmark!** :tada: :tada:
-- 08/01/2023: We release the [Chinese Massive Text Embedding Benchmark](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB) (**C-MTEB**), consisting of 31 test dataset.
+- 2023/09/07：更新 [微调代码](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/baai_general_embedding/README.md)：新增挖掘困难负样本（hard negatives）的脚本，并支持在微调时添加 instruction。
+- 2023/08/09：BGE 模型已集成到 **Langchain**，可按[这种方式](#使用-langchain)使用；C-MTEB **排行榜**已[上线](https://huggingface.co/spaces/mteb/leaderboard)。
+- 2023/08/05：发布 base 与 small 规模模型，**同尺寸模型中性能最佳 🤗**
+- 2023/08/02：发布 `bge-large-*`（BAAI General Embedding 的简称）模型，**在 MTEB 与 C-MTEB 基准上排名第一！** :tada: :tada:
+- 2023/08/01：我们发布了 [中文大规模文本嵌入评测基准](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB)（**C-MTEB**），包含 31 个测试数据集。
 
 </details>
 
 
-## Model List
+## 模型列表
 
-`bge` is short for `BAAI general embedding`.
+`bge` 是 `BAAI general embedding` 的缩写。
 
-|              Model              | Language | | Description | query instruction for retrieval [1] |
+|              模型              | 语言 | | 说明 | 检索任务的 query instruction [1] |
 |:-------------------------------|:--------:| :--------:| :--------:|:--------:|
-| [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3)                   |    Multilingual     |    [Inference](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3#usage) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3)    | Multi-Functionality(dense retrieval, sparse retrieval, multi-vector(colbert)), Multi-Linguality, and Multi-Granularity(8192 tokens) |  |
-|  [BAAI/llm-embedder](https://huggingface.co/BAAI/llm-embedder)  |   English | [Inference](./FlagEmbedding/llm_embedder/README.md) [Fine-tune](./FlagEmbedding/llm_embedder/README.md) | a unified embedding model to support diverse retrieval augmentation needs for LLMs | See [README](./FlagEmbedding/llm_embedder/README.md) |
-|  [BAAI/bge-reranker-large](https://huggingface.co/BAAI/bge-reranker-large)  |   Chinese and English | [Inference](#usage-for-reranker) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/reranker) | a cross-encoder model which is more accurate but less efficient [2] |   |
-|  [BAAI/bge-reranker-base](https://huggingface.co/BAAI/bge-reranker-base) |   Chinese and English | [Inference](#usage-for-reranker) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/reranker) | a cross-encoder model which is more accurate but less efficient [2] |   |
-|  [BAAI/bge-large-en-v1.5](https://huggingface.co/BAAI/bge-large-en-v1.5) |   English | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | version 1.5 with more reasonable similarity distribution | `Represent this sentence for searching relevant passages: `  |
-|  [BAAI/bge-base-en-v1.5](https://huggingface.co/BAAI/bge-base-en-v1.5) |   English | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | version 1.5 with more reasonable similarity distribution | `Represent this sentence for searching relevant passages: `  |
-|  [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) |   English | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | version 1.5 with more reasonable similarity distribution  | `Represent this sentence for searching relevant passages: `  |
-|  [BAAI/bge-large-zh-v1.5](https://huggingface.co/BAAI/bge-large-zh-v1.5) |   Chinese | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | version 1.5 with more reasonable similarity distribution | `为这个句子生成表示以用于检索相关文章：`  |
-|  [BAAI/bge-base-zh-v1.5](https://huggingface.co/BAAI/bge-base-zh-v1.5) |   Chinese |  [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | version 1.5 with more reasonable similarity distribution | `为这个句子生成表示以用于检索相关文章：`  |
-|  [BAAI/bge-small-zh-v1.5](https://huggingface.co/BAAI/bge-small-zh-v1.5) |   Chinese | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | version 1.5 with more reasonable similarity distribution | `为这个句子生成表示以用于检索相关文章：`  |
-|  [BAAI/bge-large-en](https://huggingface.co/BAAI/bge-large-en) |   English | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | :trophy: rank **1st** in [MTEB](https://huggingface.co/spaces/mteb/leaderboard) leaderboard | `Represent this sentence for searching relevant passages: `  |
-|  [BAAI/bge-base-en](https://huggingface.co/BAAI/bge-base-en) |   English | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | a base-scale model but with similar ability to `bge-large-en` | `Represent this sentence for searching relevant passages: `  |
-|  [BAAI/bge-small-en](https://huggingface.co/BAAI/bge-small-en) |   English | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) |a small-scale model but with competitive performance  | `Represent this sentence for searching relevant passages: `  |
-|  [BAAI/bge-large-zh](https://huggingface.co/BAAI/bge-large-zh) |   Chinese | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | :trophy: rank **1st** in [C-MTEB](https://github.com/FlagOpen/FlagEmbedding/tree/master/C_MTEB) benchmark | `为这个句子生成表示以用于检索相关文章：`  |
-|  [BAAI/bge-base-zh](https://huggingface.co/BAAI/bge-base-zh) |   Chinese |  [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | a base-scale model but with similar ability to `bge-large-zh` | `为这个句子生成表示以用于检索相关文章：`  |
-|  [BAAI/bge-small-zh](https://huggingface.co/BAAI/bge-small-zh) |   Chinese | [Inference](#usage-for-embedding-model) [Fine-tune](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | a small-scale model but with competitive performance | `为这个句子生成表示以用于检索相关文章：`  |
+| [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3)                   |    多语言     |    [推理](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3#usage) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/BGE_M3)    | 多功能（稠密检索、稀疏检索、多向量 ColBERT）、多语言、多粒度（8192 tokens） |  |
+|  [BAAI/llm-embedder](https://huggingface.co/BAAI/llm-embedder)  |   英语 | [推理](./FlagEmbedding/llm_embedder/README.md) [微调](./FlagEmbedding/llm_embedder/README.md) | 统一嵌入模型，支持 LLM 多样化的检索增强需求 | 见 [README](./FlagEmbedding/llm_embedder/README.md) |
+|  [BAAI/bge-reranker-large](https://huggingface.co/BAAI/bge-reranker-large)  |   中英双语 | [推理](#重排序模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/reranker) | 交叉编码器模型，更准确但效率较低 [2] |   |
+|  [BAAI/bge-reranker-base](https://huggingface.co/BAAI/bge-reranker-base) |   中英双语 | [推理](#重排序模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/reranker) | 交叉编码器模型，更准确但效率较低 [2] |   |
+|  [BAAI/bge-large-en-v1.5](https://huggingface.co/BAAI/bge-large-en-v1.5) |   英语 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | 1.5 版本，相似度分布更合理 | `Represent this sentence for searching relevant passages: `  |
+|  [BAAI/bge-base-en-v1.5](https://huggingface.co/BAAI/bge-base-en-v1.5) |   英语 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | 1.5 版本，相似度分布更合理 | `Represent this sentence for searching relevant passages: `  |
+|  [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) |   英语 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | 1.5 版本，相似度分布更合理  | `Represent this sentence for searching relevant passages: `  |
+|  [BAAI/bge-large-zh-v1.5](https://huggingface.co/BAAI/bge-large-zh-v1.5) |   中文 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | 1.5 版本，相似度分布更合理 | `为这个句子生成表示以用于检索相关文章：`  |
+|  [BAAI/bge-base-zh-v1.5](https://huggingface.co/BAAI/bge-base-zh-v1.5) |   中文 |  [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | 1.5 版本，相似度分布更合理 | `为这个句子生成表示以用于检索相关文章：`  |
+|  [BAAI/bge-small-zh-v1.5](https://huggingface.co/BAAI/bge-small-zh-v1.5) |   中文 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | 1.5 版本，相似度分布更合理 | `为这个句子生成表示以用于检索相关文章：`  |
+|  [BAAI/bge-large-en](https://huggingface.co/BAAI/bge-large-en) |   英语 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | :trophy: 在 [MTEB](https://huggingface.co/spaces/mteb/leaderboard) 排行榜排名 **第 1** | `Represent this sentence for searching relevant passages: `  |
+|  [BAAI/bge-base-en](https://huggingface.co/BAAI/bge-base-en) |   英语 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | base 规模模型，能力接近 `bge-large-en` | `Represent this sentence for searching relevant passages: `  |
+|  [BAAI/bge-small-en](https://huggingface.co/BAAI/bge-small-en) |   英语 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | small 规模模型，性能具有竞争力  | `Represent this sentence for searching relevant passages: `  |
+|  [BAAI/bge-large-zh](https://huggingface.co/BAAI/bge-large-zh) |   中文 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | :trophy: 在 [C-MTEB](https://github.com/FlagOpen/FlagEmbedding/tree/master/C_MTEB) 基准排名 **第 1** | `为这个句子生成表示以用于检索相关文章：`  |
+|  [BAAI/bge-base-zh](https://huggingface.co/BAAI/bge-base-zh) |   中文 |  [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | base 规模模型，能力接近 `bge-large-zh` | `为这个句子生成表示以用于检索相关文章：`  |
+|  [BAAI/bge-small-zh](https://huggingface.co/BAAI/bge-small-zh) |   中文 | [推理](#嵌入模型的使用) [微调](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) | small 规模模型，性能具有竞争力 | `为这个句子生成表示以用于检索相关文章：`  |
 
-[1\]: If you need to search the relevant passages to a query, we suggest to add the instruction to the query; in other cases, no instruction is needed, just use the original query directly. In all cases, **no instruction** needs to be added to passages.
+[1\]：如果需要根据 query 搜索相关段落，建议为 query 添加 instruction；其他情况下无需 instruction，直接使用原始 query。在所有情况下，**都不要**为段落（passage）添加 instruction。
 
-[2\]: Different from embedding model, reranker uses question and document as input and directly output similarity instead of embedding. To balance the accuracy and time cost, cross-encoder is widely used to re-rank top-k documents retrieved by other simple models.
-For examples, use bge embedding model to retrieve top 100 relevant documents, and then use bge reranker to re-rank the top 100 document to get the final top-3 results.
+[2\]：与嵌入模型不同，重排序模型以问题和文档为输入，直接输出相似度而非嵌入向量。为平衡精度与耗时，交叉编码器常用于对其他简单模型召回的 top-k 文档做重排序。
+例如：先用 bge 嵌入模型召回 top 100 相关文档，再用 bge 重排序模型对这 100 篇文档重排，得到最终的 top-3 结果。
 
-All models have been uploaded to Huggingface Hub, and you can see them at https://huggingface.co/BAAI.
-If you cannot open the Huggingface Hub, you also can download the models at https://model.baai.ac.cn/models .
+所有模型已上传至 Huggingface Hub，可在 https://huggingface.co/BAAI 查看。
+若无法访问 Huggingface Hub，也可在 https://model.baai.ac.cn/models 下载模型。
 
 
-## Frequently asked questions
+## 常见问题
 
 <details>
-  <summary>1. How to fine-tune bge embedding model?</summary>
+  <summary>1. 如何微调 bge 嵌入模型？</summary>
 
-  <!-- ### How to fine-tune bge embedding model? -->
-Following this [example](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune) to prepare data and fine-tune your model.
-Some suggestions:
-- Mine hard negatives following this [example](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune#hard-negatives), which can improve the retrieval performance.
-- If you pre-train bge on your data, the pre-trained model cannot be directly used to calculate similarity, and it must be fine-tuned with contrastive learning before computing similarity.
-- If the accuracy of the fine-tuned model is still not high, it is recommended to use/fine-tune the cross-encoder model (bge-reranker) to re-rank top-k results. Hard negatives also are needed to fine-tune reranker.
+  <!-- ### 如何微调 bge 嵌入模型？ -->
+请参考此[示例](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune)准备数据并微调模型。
+一些建议：
+- 按此[示例](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune#hard-negatives)挖掘困难负样本，可提升检索性能。
+- 若在自有数据上对 bge 做预训练，预训练后的模型不能直接用于计算相似度，必须先通过对比学习微调后再计算相似度。
+- 若微调后准确率仍不够高，建议使用/微调交叉编码器模型（bge-reranker）对 top-k 结果重排序。微调重排序模型同样需要困难负样本。
 
 
 </details>
 
 <details>
-  <summary>2. The similarity score between two dissimilar sentences is higher than 0.5</summary>
+  <summary>2. 两个不相似句子的相似度分数高于 0.5</summary>
 
-  <!-- ### The similarity score between two dissimilar sentences is higher than 0.5 -->
-**Suggest to use bge v1.5, which alleviates the issue of the similarity distribution.**
+  <!-- ### 两个不相似句子的相似度分数高于 0.5 -->
+**建议使用 bge v1.5，它缓解了相似度分布问题。**
 
-Since we finetune the models by contrastive learning with a temperature of 0.01,
-the similarity distribution of the current BGE model is about in the interval \[0.6, 1\].
-So a similarity score greater than 0.5 does not indicate that the two sentences are similar.
+由于我们使用温度为 0.01 的对比学习对模型进行微调，
+当前 BGE 模型的相似度分布大约落在区间 \[0.6, 1\]。
+因此相似度分数大于 0.5 并不意味着两个句子相似。
 
-For downstream tasks, such as passage retrieval or semantic similarity,
-**what matters is the relative order of the scores, not the absolute value.**
-If you need to filter similar sentences based on a similarity threshold,
-please select an appropriate similarity threshold based on the similarity distribution on your data (such as 0.8, 0.85, or even 0.9).
+对于下游任务（如段落检索或语义相似度），
+**重要的是分数的相对排序，而非绝对值。**
+若需要根据相似度阈值过滤相似句子，
+请根据你数据上的相似度分布选择合适阈值（如 0.8、0.85，甚至 0.9）。
 
 </details>
 
 <details>
-  <summary>3. When does the query instruction need to be used</summary>
+  <summary>3. 什么时候需要使用 query instruction</summary>
 
-  <!-- ### When does the query instruction need to be used -->
+  <!-- ### 什么时候需要使用 query instruction -->
 
-For the `bge-*-v1.5`, we improve its retrieval ability when not using instruction.
-No instruction only has a slight degradation in retrieval performance compared with using instruction.
-So you can generate embedding without instruction in all cases for convenience.
+对于 `bge-*-v1.5`，我们提升了其在不使用 instruction 时的检索能力。
+不使用 instruction 相比使用 instruction，检索性能仅略有下降。
+因此为方便起见，你可以在所有场景下都不加 instruction 来生成嵌入。
 
-For a retrieval task that uses short queries to find long related documents,
-it is recommended to add instructions for these short queries.
-**The best method to decide whether to add instructions for queries is choosing the setting that achieves better performance on your task.**
-In all cases, the documents/passages do not need to add the instruction.
+对于用短 query 检索长相关文档的检索任务，
+建议为这些短 query 添加 instruction。
+**判断是否为 query 添加 instruction 的最佳方式，是选择在你的任务上效果更好的设置。**
+在所有情况下，文档/段落都无需添加 instruction。
 
 </details>
 
 
-## Usage
+## 使用方法
 
-### Usage for Embedding Model
+### 嵌入模型的使用
 
-Here are some examples for using `bge` models with
-[FlagEmbedding](#using-flagembedding), [Sentence-Transformers](#using-sentence-transformers), [Langchain](#using-langchain), or [Huggingface Transformers](#using-huggingface-transformers).
+以下是使用 `bge` 模型的一些示例，可通过
+[FlagEmbedding](#使用-flagembedding)、[Sentence-Transformers](#使用-sentence-transformers)、[Langchain](#使用-langchain) 或 [Huggingface Transformers](#使用-huggingface-transformers) 使用。
 
-#### Using FlagEmbedding
+#### 使用 FlagEmbedding
 ```
 pip install -U FlagEmbedding
 ```
-If it doesn't work for you, you can see [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/baai_general_embedding/README.md) for more methods to install FlagEmbedding.
+如果安装不成功，可参阅 [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/baai_general_embedding/README.md) 了解更多安装方式。
 
 ```python
 from FlagEmbedding import FlagModel
@@ -168,29 +168,29 @@ sentences_1 = ["样例数据-1", "样例数据-2"]
 sentences_2 = ["样例数据-3", "样例数据-4"]
 model = FlagModel('BAAI/bge-large-zh-v1.5',
                   query_instruction_for_retrieval="为这个句子生成表示以用于检索相关文章：",
-                  use_fp16=True) # Setting use_fp16 to True speeds up computation with a slight performance degradation
+                  use_fp16=True) # 将 use_fp16 设为 True 可加速计算，性能略有下降
 embeddings_1 = model.encode(sentences_1)
 embeddings_2 = model.encode(sentences_2)
 similarity = embeddings_1 @ embeddings_2.T
 print(similarity)
 
-# for s2p(short query to long passage) retrieval task, suggest to use encode_queries() which will automatically add the instruction to each query
-# corpus in retrieval task can still use encode() or encode_corpus(), since they don't need instruction
+# 对于 s2p（短 query 检索长段落）任务，建议使用 encode_queries()，它会自动为每个 query 添加 instruction
+# 检索任务中的语料库仍可使用 encode() 或 encode_corpus()，因为它们不需要 instruction
 queries = ['query_1', 'query_2']
 passages = ["样例文档-1", "样例文档-2"]
 q_embeddings = model.encode_queries(queries)
 p_embeddings = model.encode(passages)
 scores = q_embeddings @ p_embeddings.T
 ```
-For the value of the argument `query_instruction_for_retrieval`, see [Model List](https://github.com/FlagOpen/FlagEmbedding/tree/master#model-list).
+参数 `query_instruction_for_retrieval` 的取值见 [模型列表](https://github.com/FlagOpen/FlagEmbedding/tree/master#model-list)。
 
-By default, FlagModel will use all available GPUs when encoding. Please set `os.environ["CUDA_VISIBLE_DEVICES"]` to select specific GPUs.
-You also can set `os.environ["CUDA_VISIBLE_DEVICES"]=""` to make all GPUs unavailable.
+默认情况下，FlagModel 编码时会使用所有可用 GPU。请设置 `os.environ["CUDA_VISIBLE_DEVICES"]` 来选择特定 GPU。
+也可设置 `os.environ["CUDA_VISIBLE_DEVICES"]=""` 以禁用所有 GPU。
 
 
-#### Using Sentence-Transformers
+#### 使用 Sentence-Transformers
 
-You can also use the `bge` models with [sentence-transformers](https://www.SBERT.net):
+你也可以通过 [sentence-transformers](https://www.SBERT.net) 使用 `bge` 模型：
 
 ```
 pip install -U sentence-transformers
@@ -205,9 +205,9 @@ embeddings_2 = model.encode(sentences_2, normalize_embeddings=True)
 similarity = embeddings_1 @ embeddings_2.T
 print(similarity)
 ```
-For s2p(short query to long passage) retrieval task,
-each short query should start with an instruction (instructions see [Model List](https://github.com/FlagOpen/FlagEmbedding/tree/master#model-list)).
-But the instruction is not needed for passages.
+对于 s2p（短 query 检索长段落）任务，
+每个短 query 应以 instruction 开头（instruction 见 [模型列表](https://github.com/FlagOpen/FlagEmbedding/tree/master#model-list)）。
+但段落不需要 instruction。
 ```python
 from sentence_transformers import SentenceTransformer
 queries = ['query_1', 'query_2']
@@ -220,14 +220,14 @@ p_embeddings = model.encode(passages, normalize_embeddings=True)
 scores = q_embeddings @ p_embeddings.T
 ```
 
-#### Using Langchain
+#### 使用 Langchain
 
-You can use `bge` in langchain like this:
+可以像这样在 langchain 中使用 `bge`：
 ```python
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 model_name = "BAAI/bge-large-en-v1.5"
 model_kwargs = {'device': 'cuda'}
-encode_kwargs = {'normalize_embeddings': True} # set True to compute cosine similarity
+encode_kwargs = {'normalize_embeddings': True} # 设为 True 以计算余弦相似度
 model = HuggingFaceBgeEmbeddings(
     model_name=model_name,
     model_kwargs=model_kwargs,
@@ -238,52 +238,52 @@ model.query_instruction = "为这个句子生成表示以用于检索相关文�
 ```
 
 
-#### Using HuggingFace Transformers
+#### 使用 HuggingFace Transformers
 
-With the transformers package, you can use the model like this: First, you pass your input through the transformer model, then you select the last hidden state of the first token (i.e., [CLS]) as the sentence embedding.
+使用 transformers 包时，可以这样使用模型：先将输入传入 transformer 模型，再选取第一个 token（即 [CLS]）的最后一层隐状态作为句向量。
 
 ```python
 from transformers import AutoTokenizer, AutoModel
 import torch
-# Sentences we want sentence embeddings for
+# 需要生成句向量的句子
 sentences = ["样例数据-1", "样例数据-2"]
 
-# Load model from HuggingFace Hub
+# 从 HuggingFace Hub 加载模型
 tokenizer = AutoTokenizer.from_pretrained('BAAI/bge-large-zh-v1.5')
 model = AutoModel.from_pretrained('BAAI/bge-large-zh-v1.5')
 model.eval()
 
-# Tokenize sentences
+# 对句子进行分词
 encoded_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
-# for s2p(short query to long passage) retrieval task, add an instruction to query (not add instruction for passages)
+# 对于 s2p（短 query 检索长段落）任务，为 query 添加 instruction（段落不加 instruction）
 # encoded_input = tokenizer([instruction + q for q in queries], padding=True, truncation=True, return_tensors='pt')
 
-# Compute token embeddings
+# 计算 token 嵌入
 with torch.no_grad():
     model_output = model(**encoded_input)
-    # Perform pooling. In this case, cls pooling.
+    # 池化。此处使用 cls pooling。
     sentence_embeddings = model_output[0][:, 0]
-# normalize embeddings
+# 归一化嵌入
 sentence_embeddings = torch.nn.functional.normalize(sentence_embeddings, p=2, dim=1)
 print("Sentence embeddings:", sentence_embeddings)
 ```
 
-### Usage for Reranker
+### 重排序模型的使用
 
-Different from embedding model, reranker uses question and document as input and directly output similarity instead of embedding.
-You can get a relevance score by inputting query and passage to the reranker.
-The reranker is optimized based cross-entropy loss, so the relevance score is not bounded to a specific range.
+与嵌入模型不同，重排序模型以问题和文档为输入，直接输出相似度而非嵌入向量。
+将 query 与 passage 输入重排序模型，即可得到相关性分数。
+该重排序模型基于交叉熵损失优化，因此相关性分数不限制在特定区间内。
 
 
-#### Using FlagEmbedding
+#### 使用 FlagEmbedding
 ```
 pip install -U FlagEmbedding
 ```
 
-Get relevance scores (higher scores indicate more relevance):
+获取相关性分数（分数越高表示越相关）：
 ```python
 from FlagEmbedding import FlagReranker
-reranker = FlagReranker('BAAI/bge-reranker-large', use_fp16=True) # Setting use_fp16 to True speeds up computation with a slight performance degradation
+reranker = FlagReranker('BAAI/bge-reranker-large', use_fp16=True) # 将 use_fp16 设为 True 可加速计算，性能略有下降
 
 score = reranker.compute_score(['query', 'passage'])
 print(score)
@@ -293,7 +293,7 @@ print(scores)
 ```
 
 
-#### Using Huggingface transformers
+#### 使用 Huggingface transformers
 
 ```python
 import torch
@@ -310,14 +310,14 @@ with torch.no_grad():
     print(scores)
 ```
 
-## Evaluation
+## 评测
 
-`baai-general-embedding` models achieve **state-of-the-art performance on both MTEB and C-MTEB leaderboard!**
-For more details and evaluation tools see our [scripts](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/README.md).
+`baai-general-embedding` 模型在 **MTEB 与 C-MTEB 排行榜上均达到最先进水平！**
+更多细节与评测工具见我们的 [脚本](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/README.md)。
 
-- **MTEB**:
+- **MTEB**：
 
-| Model Name |  Dimension | Sequence Length | Average (56) | Retrieval (15) |Clustering (11) | Pair Classification (3) | Reranking (4) |  STS (10) | Summarization (1) | Classification (12) |
+| 模型名称 |  维度 | 序列长度 | 平均 (56) | 检索 (15) |聚类 (11) | 配对分类 (3) | 重排序 (4) |  STS (10) | 摘要 (1) | 分类 (12) |
 |:----:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | [BAAI/bge-large-en-v1.5](https://huggingface.co/BAAI/bge-large-en-v1.5) | 1024 | 512 |  **64.23** | **54.29** |  46.08 | 87.12 | 60.03 | 83.11 | 31.61 | 75.97 |
 | [BAAI/bge-base-en-v1.5](https://huggingface.co/BAAI/bge-base-en-v1.5) |  768 | 512 | 63.55 | 53.25 |   45.77 | 86.55 | 58.86 | 82.4 | 31.07 | 75.53 |
@@ -339,11 +339,11 @@ For more details and evaluation tools see our [scripts](https://github.com/FlagO
 
 
 
-- **C-MTEB**:
-We create the benchmark C-MTEB for Chinese text embedding which consists of 31 datasets from 6 tasks.
-Please refer to [C_MTEB](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/README.md) for a detailed introduction.
+- **C-MTEB**：
+我们创建了中文文本嵌入评测基准 C-MTEB，包含来自 6 类任务的 31 个数据集。
+详细介绍请参阅 [C_MTEB](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/README.md)。
 
-| Model | Embedding dimension | Avg | Retrieval | STS | PairClassification | Classification | Reranking | Clustering |
+| 模型 | 嵌入维度 | 平均 | 检索 | STS | 配对分类 | 分类 | 重排序 | 聚类 |
 |:-------------------------------|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
 | [**BAAI/bge-large-zh-v1.5**](https://huggingface.co/BAAI/bge-large-zh-v1.5) | 1024 |  **64.53** | 70.46 | 56.25 | 81.6 | 69.13 | 65.84 | 48.99 |
 | [BAAI/bge-base-zh-v1.5](https://huggingface.co/BAAI/bge-base-zh-v1.5) | 768 |  63.13 | 69.49 | 53.72 | 79.75 | 68.07 | 65.39 | 47.53 |
@@ -363,10 +363,10 @@ Please refer to [C_MTEB](https://github.com/FlagOpen/FlagEmbedding/blob/master/C
 | [text2vec-large](https://huggingface.co/GanymedeNil/text2vec-large-chinese) | 1024 | 47.36 | 41.94 | 44.97 | 70.86 | 60.66 | 49.16 | 30.02 |
 
 
-- **Reranking**:
-See [C_MTEB](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/) for evaluation script.
+- **重排序**：
+评测脚本见 [C_MTEB](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/)。
 
-| Model | T2Reranking | T2RerankingZh2En\* | T2RerankingEn2Zh\* | MMarcoReranking | CMedQAv1 | CMedQAv2 | Avg |
+| 模型 | T2Reranking | T2RerankingZh2En\* | T2RerankingEn2Zh\* | MMarcoReranking | CMedQAv1 | CMedQAv2 | 平均 |
 |:-------------------------------|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
 | text2vec-base-multilingual | 64.66 | 62.94 | 62.51 | 14.37 | 48.46 | 48.6 | 50.26 |
 | multilingual-e5-small | 65.62 | 60.94 | 56.41 | 29.91 | 67.26 | 66.54 | 57.78 |
@@ -379,38 +379,38 @@ See [C_MTEB](https://github.com/FlagOpen/FlagEmbedding/blob/master/C_MTEB/) for 
 | [BAAI/bge-reranker-base](https://huggingface.co/BAAI/bge-reranker-base) | 67.28 | 63.95 | 60.45 | 35.46 | 81.26 | 84.1 | 65.42 |
 | [BAAI/bge-reranker-large](https://huggingface.co/BAAI/bge-reranker-large) | 67.6 | 64.03 | 61.44 | 37.16 | 82.15 | 84.18 | 66.09 |
 
-\* : T2RerankingZh2En and T2RerankingEn2Zh are cross-language retrieval tasks
+\*：T2RerankingZh2En 与 T2RerankingEn2Zh 为跨语言检索任务
 
-## Train
+## 训练
 
 ### BAAI Embedding
 
-We pre-train the models using [retromae](https://github.com/staoxiao/RetroMAE) and train them on large-scale pairs data using contrastive learning.
-**You can fine-tune the embedding model on your data following our [examples](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune).**
-We also provide a [pre-train example](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/pretrain).
-Note that the goal of pre-training is to reconstruct the text, and the pre-trained model cannot be used for similarity calculation directly, it needs to be fine-tuned.
-More training details for bge see [baai_general_embedding](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/baai_general_embedding/README.md).
+我们使用 [retromae](https://github.com/staoxiao/RetroMAE) 对模型进行预训练，并在大规模配对数据上通过对比学习训练。
+**你可以参考我们的[示例](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/finetune)，在自有数据上微调嵌入模型。**
+我们也提供了[预训练示例](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/pretrain)。
+注意：预训练的目标是重建文本，预训练后的模型不能直接用于相似度计算，需要再微调。
+bge 更多训练细节见 [baai_general_embedding](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/baai_general_embedding/README.md)。
 
 
 
 ### BGE Reranker
 
-Cross-encoder will perform full-attention over the input pair,
-which is more accurate than embedding model (i.e., bi-encoder) but more time-consuming than embedding model.
-Therefore, it can be used to re-rank the top-k documents returned by embedding model.
-We train the cross-encoder on a multilingual pair data,
-The data format is the same as embedding model, so you can fine-tune it easily following our [example](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/reranker).
-More details please refer to [./FlagEmbedding/reranker/README.md](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/reranker)
+交叉编码器会对输入对做全注意力计算，
+比嵌入模型（即双编码器）更准确，但也更耗时。
+因此可用于对嵌入模型返回的 top-k 文档做重排序。
+我们在多语言配对数据上训练交叉编码器，
+数据格式与嵌入模型相同，因此可以很容易地按我们的[示例](https://github.com/FlagOpen/FlagEmbedding/tree/master/examples/reranker)进行微调。
+更多细节请参阅 [./FlagEmbedding/reranker/README.md](https://github.com/FlagOpen/FlagEmbedding/tree/master/FlagEmbedding/reranker)
 
 
-## Contact
-If you have any question or suggestion related to this project, feel free to open an issue or pull request.
-You also can email Shitao Xiao(stxiao@baai.ac.cn) and Zheng Liu(liuzheng@baai.ac.cn).
+## 联系我们
+如对本项目有任何问题或建议，欢迎提交 issue 或 pull request。
+也可发邮件给 Shitao Xiao（stxiao@baai.ac.cn）和 Zheng Liu（liuzheng@baai.ac.cn）。
 
 
-## Citation
+## 引用
 
-If you find this repository useful, please consider giving a star :star: and citation
+如果本仓库对你有帮助，欢迎点亮 star :star: 并引用
 
 ```
 @misc{bge_embedding,
@@ -423,5 +423,5 @@ If you find this repository useful, please consider giving a star :star: and cit
 }
 ```
 
-## License
-FlagEmbedding is licensed under the [MIT License](https://github.com/FlagOpen/FlagEmbedding/blob/master/LICENSE). The released models can be used for commercial purposes free of charge.
+## 许可证
+FlagEmbedding 采用 [MIT License](https://github.com/FlagOpen/FlagEmbedding/blob/master/LICENSE) 许可。发布的模型可免费用于商业用途。
