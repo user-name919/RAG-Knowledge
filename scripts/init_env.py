@@ -12,7 +12,6 @@ if target.exists():
     print('.env already exists; left unchanged.')
 else:
     content = (root / '.env.example').read_text()
-    content = content.replace('replace-with-random-root-password', secrets.token_hex(24))
     content = content.replace('replace-with-random-app-password', secrets.token_hex(24))
     content = content.replace('replace-with-random-admin-key', secrets.token_urlsafe(32))
     # O_EXCL 避免并发初始化覆盖已有文件；0600 限制为当前用户可读写。

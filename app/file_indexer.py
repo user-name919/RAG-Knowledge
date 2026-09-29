@@ -136,15 +136,15 @@ def process_file_task(task_id, token, factory=SessionLocal, embedder=None, store
             if task.lease_token != token or task.status != 'running':
                 return
             if record.version != version:
-                store.delete_document(doc_id, exact_version=version)
+                store.delete_document(doc_id, exact_version=version, db=db)
                 task.status = 'superseded'
             elif doc.deleted:
-                store.delete_document(doc_id)
+                store.delete_document(doc_id, db=db)
                 stored_path(record.storage_path).unlink(missing_ok=True)
                 record.indexed_version, record.chunk_count = version, 0
                 task.status = 'done'
             else:
-                store.delete_document(doc_id, before_version=version)
+                store.delete_document(doc_id, before_version=version, db=db)
                 record.indexed_version, record.chunk_count, record.warnings = version, len(chunks), warnings
                 task.status = 'done'
             task.last_error, task.lease_until = None, None

@@ -1,4 +1,4 @@
-# 文件上传与原文管理。原文件保存到共享卷，MySQL 保存其当前版本；向量化交给后台任务。
+# 文件上传与原文管理。原文件保存到共享卷，PostgreSQL 保存其当前版本；向量化交给后台任务。
 import hashlib
 import json
 from pathlib import Path

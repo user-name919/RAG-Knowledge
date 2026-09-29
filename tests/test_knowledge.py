@@ -22,7 +22,7 @@ class FakeEmbedding:
         return [[1.0, 0.0] for t in texts]
 
 
-# 用字典模拟 ES 的确定性 ID 写入和按版本删除行为。
+# 用字典模拟 检索存储 的确定性 ID 写入和按版本删除行为。
 class FakeStore:
     # 每个实例单独保存片段，避免不同测试互相污染。
     def __init__(self):
@@ -37,7 +37,7 @@ class FakeStore:
         self.records.update({c['id']: deepcopy(c) for c in chunks})
 
     # 模拟只删除指定 QA、指定版本范围的片段，供更新和过期任务测试使用。
-    def delete_qa(self, qa_id, before_version=None, exact_version=None):
+    def delete_qa(self, qa_id, before_version=None, exact_version=None, db=None):
         for key, row in list(self.records.items()):
             if row['qa_id'] != qa_id:
                 continue
@@ -186,7 +186,7 @@ def test_db_validation_checks_scope_and_tags(client, factory):
         assert valid_candidates(db, tampered, [kb], [], []) == []
 
 
-# 删除整个节点后，即使 ES 仍有片段也不可返回，QA 列表也不可访问。
+# 删除整个节点后，即使 检索存储 仍有片段也不可返回，QA 列表也不可访问。
 def test_document_delete_invalidates_all_chunks(client, factory):
     kb, _, path, _, _ = seed(client)
     store = FakeStore()
@@ -211,10 +211,10 @@ def test_unicode_chunking_is_lossless_and_bounded(client, factory):
 
 # 用可手算分数验证双路加权及缺失分支为零；纯关键词候选分数受其权重限制。
 def test_fusion_missing_branch_and_threshold(client):
-    # 构造最小 ES 命中结构，便于手工核对融合分数。
+    # 构造最小 检索存储 命中结构，便于手工核对融合分数。
     def hit(id, score):
         return {'_id': id, '_score': score, '_source': {'id': id}}
-    rows = fuse([hit('semantic', 0.9), hit('both', 0.8)], [hit('both', 8), hit('keyword', 80)])
+    rows = fuse([hit('semantic', 0.9), hit('both', 0.8)], [hit('both', .5), hit('keyword', .9)])
     assert [r['id'] for r in rows] == ['both', 'semantic', 'keyword']
     assert rows[0]['score'] == pytest.approx(.74)
     assert rows[1]['keyword_score'] == 0

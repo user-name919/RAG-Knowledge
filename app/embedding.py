@@ -50,7 +50,7 @@ class EmbeddingClient:
                         vector = item['embedding']
                         if len(vector) != settings.embedding_dimensions or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in vector):
                             raise ValueError('Invalid embedding dimensions or values')
-                        # 余弦相似度不能对零向量计算；提前拒绝，避免向 ES 写入不可用数据。
+                        # 余弦相似度不能对零向量计算；提前拒绝，避免向 检索片段 写入不可用数据。
                         if sum(v*v for v in vector) == 0:
                             raise ValueError('Zero embedding vector')
                         vectors.append(vector)

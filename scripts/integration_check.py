@@ -1,7 +1,7 @@
-# 真实 MySQL/ES 集成验证。只替换 Embedding 输出，不调用云模型。
+# 真实 PostgreSQL/pgvector 集成验证。只替换 Embedding 输出，不调用云模型。
 # 使用专属测试知识库与索引并在 finally 清理；运行前应停止常驻 Worker，避免争抢测试任务。
 
-"""Real MySQL + real ES, synthetic vectors. No external model call or quality claim."""
+"""Real PostgreSQL + real pgvector, synthetic vectors. No external model call or quality claim."""
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -19,9 +19,9 @@ from app.search import SearchStore
 from app.worker import claim_task, process_task
 
 settings = get_settings()
-# 暂存默认索引名，后面所有 ES 操作切换到本次随机命名的测试索引。
-old_index = settings.es_index
-settings.es_index = 'team-rag-integration-' + uuid4().hex
+# 暂存默认索引名，后面所有 pgvector 操作切换到本次随机命名的测试索引。
+old_index = settings.retrieval_collection
+settings.retrieval_collection = 'team-rag-integration-' + uuid4().hex
 original_embed = EmbeddingClient.embed
 kb_ids = []
 
@@ -55,7 +55,7 @@ try:
         retry = request('POST', path + '/qa_pairs/batch_create', json=payload)['data']
         assert [q['id'] for q in retry] == [q['id'] for q in batch]
         # Scope workers to the two fixture tasks; never consume user tasks.
-        # Test concurrent MySQL SKIP LOCKED claims against a filtered session subclass.
+        # Test concurrent PostgreSQL SKIP LOCKED claims against a filtered session subclass.
         from sqlalchemy.orm import Session, sessionmaker
         from sqlalchemy import event
         # 为集成任务领取建立专属会话类型，限定测试的查询范围，不改变生产 SessionLocal。
@@ -67,9 +67,9 @@ try:
             if state.is_select and any(d.get('entity') is IndexTask for d in state.statement.column_descriptions):
                 state.statement = state.statement.where(IndexTask.qa_id.in_([q['id'] for q in batch]))
         fixture_factory = sessionmaker(bind=SessionLocal.kw['bind'], class_=FixtureSession, expire_on_commit=False)
-        # 短暂轮询等待任务可领取；MySQL DATETIME 精度可能让当前时间被舍入到下一秒。
+        # 短暂轮询等待任务可领取；PostgreSQL DATETIME 精度可能让当前时间被舍入到下一秒。
         def await_claim():
-            # MySQL DATETIME has second precision; immediate eligibility can round up.
+            # PostgreSQL DATETIME has second precision; immediate eligibility can round up.
             for _ in range(30):
                 claimed = claim_task(fixture_factory)
                 if claimed:
@@ -89,6 +89,18 @@ try:
         assert result['total'] == 1, result
         assert result['data'][0]['qa_id'] == batch[1]['id']
         assert result['data'][0]['keyword_score'] > 0 and result['data'][0]['vector_score'] > 0
+        # 中文词元召回、相邻错误码不误匹配，以及同库事务回滚。
+        store = SearchStore()
+        vector = fixture_vectors(None, ['query'])[0]
+        _, chinese = store.search('学生作业', vector, [kb], [doc], [], 40)
+        assert any(hit['_source']['qa_id'] == batch[0]['id'] for hit in chinese)
+        _, wrong_code = store.search('TASK_404', vector, [kb], [doc], [], 40)
+        assert wrong_code == []
+        before = store.count()
+        with SessionLocal() as transaction:
+            store.delete_qa(batch[0]['id'], db=transaction)
+            transaction.rollback()
+        assert store.count() == before
         key = request('POST', '/v1/api_keys', json={'name': 'integration-reader', 'knowledge_base_ids': [kb]})
         denied = client.post('/v1/knowledge_bases/recall', headers={'api-key': key['api_key']}, json={'knowledge_base_ids': ['other'], 'query': 'test'})
         assert denied.status_code == 403
@@ -101,8 +113,8 @@ try:
         request('DELETE', qa_url)
         assert request('POST', '/v1/knowledge_bases/recall', json=body)['total'] == 0
         process_task(*await_claim(), factory=fixture_factory)
-        assert SearchStore().request('GET', '/' + settings.es_index + '/_count')['count'] == 1
-        print('PASS: real MySQL + ES; concurrent claims, idempotency, indexing, hybrid scores, filters, ACL, update and delete.')
+        assert SearchStore().count() == 1
+        print('PASS: real PostgreSQL + pgvector; concurrent claims, idempotency, indexing, hybrid scores, filters, ACL, update and delete.')
         print('Synthetic vectors only: real Embedding connectivity and semantic quality remain unverified.')
 finally:
     EmbeddingClient.embed = original_embed
@@ -117,7 +129,8 @@ finally:
             if set(key.knowledge_base_ids).intersection(kb_ids):
                 db.delete(key)
         db.execute(delete(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids)))
-    try:
-        SearchStore().request('DELETE', '/' + settings.es_index)
-    finally:
-        settings.es_index = old_index
+    from sqlalchemy import text
+    with SessionLocal() as db, db.begin():
+        db.execute(text('DELETE FROM knowledge_chunks WHERE collection=:collection'), {'collection': settings.retrieval_collection})
+        db.execute(text('DELETE FROM retrieval_metadata WHERE collection=:collection'), {'collection': settings.retrieval_collection})
+    settings.retrieval_collection = old_index

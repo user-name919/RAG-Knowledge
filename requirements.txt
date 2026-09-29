@@ -4,9 +4,9 @@ fastapi==0.115.12
 uvicorn==0.34.2
 # 数据库映射、事务和任务领取行锁。
 SQLAlchemy==2.0.40
-# MySQL 驱动；rsa 扩展支持相应认证所需的加密能力。
-PyMySQL[rsa]==1.1.1
-# 调用 ES 和 Embedding HTTP 接口；socks 扩展兼容开发机的 SOCKS 代理。
+# PostgreSQL 驱动，使用二进制分发免去本机编译依赖。
+psycopg[binary]==3.2.9
+# 调用 Embedding HTTP 接口；socks 扩展兼容开发机的 SOCKS 代理。
 httpx[socks]==0.28.1
 # 从进程环境及 .env 加载带类型校验的配置。
 pydantic-settings==2.8.1

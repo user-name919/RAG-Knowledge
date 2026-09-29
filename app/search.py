@@ -1,148 +1,174 @@
-# Elasticsearch 适配层与双路评分融合。ES 同时保存全文索引和稠密向量。
-# 仅负责候选检索；召回结果的最终权限和版本校验由 main.valid_candidates 执行。
-
+# PostgreSQL 检索适配：向量、全文索引及业务数据共用数据库。
+# 片段先暂存，Worker 校验版本后发布；清理旧片段与版本发布使用同一个事务。
 import json
 import math
-import httpx
+import re
+from contextlib import contextmanager
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from .config import get_settings
+from .db import engine
 
 
-# 检索存储故障的统一脱敏异常，供 API 和后台任务按各自方式处理。
 class SearchError(RuntimeError):
-    pass
+    """对外只暴露脱敏的检索错误，避免 SQL 参数携带正文或凭据。"""
 
 
-# 围绕 ES HTTP API 提供建索引、写入、清理和候选检索能力。
+def keyword_tokens(value):
+    """中文采用重叠双字词元；英文、错误码、路径保留完整词项。
+
+    将词项编码成 ASCII，避免 PostgreSQL 默认解析器拆开 TASK_403 等精确词。
+    这是一套明确的基线分词规则，不宣称具备中文语义分词或 ES BM25 的效果。
+    """
+    result = []
+    for word in re.findall(r'[\u3400-\u9fff]+|[a-zA-Z0-9_]+(?:[./:\-][a-zA-Z0-9_]+)*', value.lower()):
+        terms = [word[i:i + 2] for i in range(len(word) - 1)] if re.fullmatch(r'[\u3400-\u9fff]{2,}', word) else [word]
+        # PostgreSQL 词项最长 2046 字节；过长机器字符串不进入关键词路，原文和向量仍保留。
+        result.extend('t' + term.encode().hex() for term in terms if len(term.encode()) <= 900)
+    return result
+
+
 class SearchStore:
-    # 允许传入独立配置，集成测试使用专属 ES 索引，不修改默认业务索引。
-    def __init__(self, settings=None):
+    def __init__(self, settings=None, bind=None):
         self.settings = settings or get_settings()
+        self.engine = bind or engine
 
-    # 统一处理 ES 请求和错误。trust_env=False 避免本地/容器内 ES 请求误走系统代理。
-    # 只向上暴露 HTTP 状态或错误类别，不回传 ES 的完整响应正文。
-    def request(self, method, path, **kwargs):
+    @contextmanager
+    def connection(self, db=None):
+        # Worker 传入业务会话时，不在这里提交；删除和 indexed_version 一起成功或回滚。
         try:
-            with httpx.Client(base_url=self.settings.es_url, timeout=45, trust_env=False) as client:
-                response = client.request(method, path, **kwargs)
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPStatusError as exc:
-            raise SearchError('Elasticsearch HTTP ' + str(exc.response.status_code)) from None
-        except (httpx.RequestError, ValueError):
-            raise SearchError('Elasticsearch connection or response error') from None
+            if db is not None:
+                yield db
+            else:
+                with self.engine.begin() as connection:
+                    yield connection
+        except SQLAlchemyError:
+            raise SearchError('PostgreSQL search operation failed') from None
 
-    # 创建单分片、零副本的开发索引；存在时检查模型、维度和 schema 版本。
-    # keyword 字段用于过滤，cjk 文本字段用于词项检索，dense_vector 用于余弦近邻检索。
     def ensure_index(self):
         s = self.settings
-        mappings = {
-            # 记录模型标识和结构版本；相同维度也不代表不同模型的向量可混合。
-            '_meta': {'embedding_model': s.embedding_model, 'schema_version': 1},
-            # 拒绝未声明字段，让写入格式错误显式失败，而不是自动扩展出错误映射。
-            'dynamic': 'strict',
-            'properties': {
-                **{k: {'type': 'keyword'} for k in ['id', 'qa_id', 'knowledge_base_id', 'document_id', 'tags', 'embedding_model']},
-                # cjk 为中文等文本生成词元；exact 子字段保留整值，但当前检索尚未使用它。
-                **{k: {'type': 'text', 'analyzer': 'cjk', 'fields': {'exact': {'type': 'keyword', 'ignore_above': 512}}} for k in ['title', 'question', 'stand_query', 'content']},
-                'type': {'type': 'keyword'},
-                'heading': {'type': 'text', 'analyzer': 'cjk'},
-                'page_number': {'type': 'integer'},
-                'version': {'type': 'integer'},
-                # 来源字段保留在 _source 用于追溯，不建立搜索索引。
-                'source_uri': {'type': 'keyword', 'index': False},
-                'source_location': {'type': 'keyword', 'index': False},
-                'updated_at': {'type': 'date'},
-                'embedding': {'type': 'dense_vector', 'dims': s.embedding_dimensions, 'index': True, 'similarity': 'cosine'},
-            },
-        }
-        try:
-            self.request('PUT', '/' + s.es_index, json={'settings': {'number_of_shards': 1, 'number_of_replicas': 0}, 'mappings': mappings})
-        except SearchError:
-            # A concurrent creator or an existing index is acceptable only if metadata matches.
-            existing = self.request('GET', '/' + s.es_index + '/_mapping')[s.es_index]['mappings']
-            if existing.get('_meta') != mappings['_meta'] or existing['properties']['embedding']['dims'] != s.embedding_dimensions:
-                raise SearchError('Index model/schema mismatch; use a new ES_INDEX and reindex')
-            # 兼容旧 QA 索引，仅增补文件来源字段，不重建或删除原有记录。
-            additions = {key: mappings['properties'][key] for key in ('type', 'heading', 'page_number') if key not in existing['properties']}
-            if additions:
-                self.request('PUT', '/' + s.es_index + '/_mapping', json={'properties': additions})
+        dims = s.embedding_dimensions
+        if not 1 <= dims <= 2000:
+            raise SearchError('HNSW vector dimensions must be between 1 and 2000')
+        with self.connection() as conn:
+            # 初始化锁防止 API 和多个 Worker 同时创建扩展、表及索引。
+            conn.execute(text('SELECT pg_advisory_xact_lock(78124031)'))
+            conn.execute(text('CREATE EXTENSION IF NOT EXISTS vector'))
+            conn.execute(text('''CREATE TABLE IF NOT EXISTS retrieval_metadata (
+                collection text PRIMARY KEY, model text NOT NULL, dimensions integer NOT NULL,
+                schema_version integer NOT NULL)'''))
+            conn.execute(text('''INSERT INTO retrieval_metadata VALUES (:collection, :model, :dims, 1)
+                ON CONFLICT (collection) DO NOTHING'''), {'collection': s.retrieval_collection, 'model': s.embedding_model, 'dims': dims})
+            row = conn.execute(text('SELECT model, dimensions, schema_version FROM retrieval_metadata WHERE collection=:collection'), {'collection': s.retrieval_collection}).one()
+            if tuple(row) != (s.embedding_model, dims, 1):
+                raise SearchError('Collection model/schema mismatch; migrate and reindex explicitly')
+            # 维度来自经过整数范围校验的配置，不插入用户输入或 SQL 标识符。
+            conn.execute(text(f'''CREATE TABLE IF NOT EXISTS knowledge_chunks (
+                collection text NOT NULL, id text NOT NULL, knowledge_base_id text NOT NULL,
+                document_id text NOT NULL, qa_id text, version integer NOT NULL,
+                kind text NOT NULL, payload jsonb NOT NULL, tags jsonb NOT NULL,
+                embedding vector({dims}) NOT NULL, keywords tsvector NOT NULL,
+                PRIMARY KEY (collection, id))'''))
+            actual = conn.execute(text("SELECT format_type(atttypid, atttypmod) FROM pg_attribute WHERE attrelid='knowledge_chunks'::regclass AND attname='embedding'")).scalar_one()
+            if actual != f'vector({dims})':
+                raise SearchError('Stored vector dimensions differ; use an explicit database migration')
+            conn.execute(text('CREATE INDEX IF NOT EXISTS ix_chunks_vector ON knowledge_chunks USING hnsw (embedding vector_cosine_ops)'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS ix_chunks_keywords ON knowledge_chunks USING gin (keywords)'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS ix_chunks_scope ON knowledge_chunks (collection, knowledge_base_id, document_id)'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS ix_chunks_qa ON knowledge_chunks (collection, qa_id)'))
 
-    # 以 NDJSON 批量写入片段，确定性 _id 使同版本重试覆盖已有记录。
-    # refresh=wait_for 等待搜索可见后再发布 MySQL 索引版本；HTTP 成功仍需检查批量子项错误。
-    def put_chunks(self, chunks, vectors):
-        # ES bulk 使用一行操作元数据、一行正文的 NDJSON；最后也必须带换行。
-        lines = []
+    def count(self):
+        with self.connection() as conn:
+            return conn.execute(text('SELECT count(*) FROM knowledge_chunks WHERE collection=:collection'), {'collection': self.settings.retrieval_collection}).scalar_one()
+
+    def put_chunks(self, chunks, vectors, db=None):
+        if len(chunks) != len(vectors):
+            raise SearchError('Embedding count mismatch')
+        rows = []
         for chunk, vector in zip(chunks, vectors):
+            if len(vector) != self.settings.embedding_dimensions or any(not math.isfinite(v) for v in vector) or not any(vector):
+                raise SearchError('Invalid embedding dimensions or values')
             payload = {k: v for k, v in chunk.items() if k != 'embedding_text'}
-            payload['embedding'] = vector
-            lines.extend([json.dumps({'index': {'_index': self.settings.es_index, '_id': chunk['id']}}), json.dumps(payload, ensure_ascii=False)])
-        response = self.request('POST', '/_bulk?refresh=wait_for', content='\n'.join(lines) + '\n', headers={'Content-Type': 'application/x-ndjson'})
-        # bulk 顶层 HTTP 200 不保证每条成功；部分失败交给任务重试，用确定性 ID 覆盖。
-        if response.get('errors'):
-            raise SearchError('Elasticsearch bulk indexing partially failed; retry uses deterministic IDs')
+            rows.append({'collection': self.settings.retrieval_collection, 'id': chunk['id'],
+                'kb': chunk['knowledge_base_id'], 'doc': chunk['document_id'], 'qa': chunk.get('qa_id'),
+                'version': chunk['version'], 'kind': chunk.get('type', 'qa'),
+                'payload': json.dumps(payload, ensure_ascii=False), 'tags': json.dumps(chunk.get('tags', [])),
+                'vector': json.dumps(vector),
+                'question': ' '.join(keyword_tokens(chunk.get('question', '') + ' ' + chunk.get('stand_query', ''))),
+                'title': ' '.join(keyword_tokens(chunk.get('title', '') + ' ' + chunk.get('heading', ''))),
+                'content': ' '.join(keyword_tokens(chunk['content']))})
+        if not rows:
+            return
+        with self.connection(db) as conn:
+            # 确定性片段 ID + UPSERT 保证任务重试不重复；一批写入在同一事务提交。
+            conn.execute(text('''INSERT INTO knowledge_chunks
+                (collection,id,knowledge_base_id,document_id,qa_id,version,kind,payload,tags,embedding,keywords)
+                VALUES (:collection,:id,:kb,:doc,:qa,:version,:kind,CAST(:payload AS jsonb),CAST(:tags AS jsonb),CAST(:vector AS vector),
+                    setweight(to_tsvector('simple',:question),'A') || setweight(to_tsvector('simple',:title),'B') || setweight(to_tsvector('simple',:content),'D'))
+                ON CONFLICT (collection,id) DO UPDATE SET payload=EXCLUDED.payload,tags=EXCLUDED.tags,
+                    embedding=EXCLUDED.embedding,keywords=EXCLUDED.keywords'''), rows)
 
-    # 清理一个 QA 的全部、旧版本或指定版本片段。
-    # 更新仅删旧版本，过期任务仅删自己的版本，避免误删其他任务刚写入的新数据。
-    def delete_qa(self, qa_id, before_version=None, exact_version=None):
-        filters = [{'term': {'qa_id': qa_id}}]
+    def delete_qa(self, qa_id, before_version=None, exact_version=None, db=None):
+        self._delete('qa_id=:target', qa_id, before_version, exact_version, db)
+
+    def delete_document(self, document_id, before_version=None, exact_version=None, db=None):
+        self._delete("document_id=:target AND kind='document'", document_id, before_version, exact_version, db)
+
+    def _delete(self, condition, target, before_version, exact_version, db):
+        params = {'collection': self.settings.retrieval_collection, 'target': target}
         if before_version is not None:
-            filters.append({'range': {'version': {'lt': before_version}}})
+            condition += ' AND version<:version'
+            params['version'] = before_version
         if exact_version is not None:
-            filters.append({'term': {'version': exact_version}})
-        response = self.request('POST', '/' + self.settings.es_index + '/_delete_by_query?refresh=true&conflicts=proceed', json={'query': {'bool': {'filter': filters}}})
-        # 删除冲突不当作彻底成功，否则 MySQL 会错误地认为清理已经完成。
-        if response.get('failures') or response.get('version_conflicts'):
-            raise SearchError('Elasticsearch cleanup incomplete; retry needed')
+            condition += ' AND version=:version'
+            params['version'] = exact_version
+        with self.connection(db) as conn:
+            conn.execute(text('DELETE FROM knowledge_chunks WHERE collection=:collection AND ' + condition), params)
 
-    # 文件片段和 QA 可以位于同一个节点；删除文件索引时明确限定 type。
-    def delete_document(self, document_id, before_version=None, exact_version=None):
-        filters = [{'term': {'document_id': document_id}}, {'term': {'type': 'document'}}]
-        if before_version is not None:
-            filters.append({'range': {'version': {'lt': before_version}}})
-        if exact_version is not None:
-            filters.append({'term': {'version': exact_version}})
-        response = self.request('POST', '/' + self.settings.es_index + '/_delete_by_query?refresh=true&conflicts=proceed', json={'query': {'bool': {'filter': filters}}})
-        if response.get('failures') or response.get('version_conflicts'):
-            raise SearchError('Document index cleanup incomplete')
-
-    # 使用同一组过滤条件分别执行关键词和向量检索，返回两份 ES 命中列表。
-    # count 是候选规模，不是最终 top_k；返回时排除向量，减少数据传输。
     def search(self, query, vector, kb_ids, document_ids, tags, count):
-        filters = [{'terms': {'knowledge_base_id': kb_ids}}]
+        if len(vector) != self.settings.embedding_dimensions or any(not math.isfinite(v) for v in vector) or not any(vector):
+            raise SearchError('Invalid query vector')
+        params = {'collection': self.settings.retrieval_collection, 'kbs': kb_ids, 'docs': document_ids,
+                  'tags': json.dumps(tags), 'vector': json.dumps(vector), 'count': count}
+        # 在 LIMIT 之前校验已发布版本、删除状态和范围，避免失效片段挤占候选名额。
+        condition = '''c.collection=:collection AND c.knowledge_base_id=ANY(:kbs)
+            AND c.tags @> CAST(:tags AS jsonb)
+            AND EXISTS (SELECT 1 FROM documents d WHERE d.id=c.document_id AND NOT d.deleted AND d.knowledge_base_id=c.knowledge_base_id)
+            AND ((c.kind='qa' AND EXISTS (SELECT 1 FROM qa_pairs q WHERE q.id=c.qa_id AND q.document_id=c.document_id
+                AND NOT q.deleted AND q.version=c.version AND q.indexed_version=c.version))
+              OR (c.kind='document' AND EXISTS (SELECT 1 FROM document_files f WHERE f.document_id=c.document_id
+                AND f.version=c.version AND f.indexed_version=c.version)))'''
         if document_ids:
-            filters.append({'terms': {'document_id': document_ids}})
-        # All requested tags must match.
-        filters.extend({'term': {'tags': tag}} for tag in tags)
-        source = {'excludes': ['embedding']}
-        # 问题和标准问法的词项匹配权重为 3，标题为 2，正文为 1；这不是两路融合权重。
-        keyword = self.request('POST', '/' + self.settings.es_index + '/_search', json={
-            'size': count, '_source': source,
-            'query': {'bool': {'filter': filters, 'must': [{'multi_match': {'query': query, 'fields': ['question^3', 'stand_query^3', 'title^2', 'content']}}]}},
-        })['hits']['hits']
-        # num_candidates 是近邻搜索候选预算；过滤放在 kNN 内部，避免先取无权限近邻再过滤。
-        semantic = self.request('POST', '/' + self.settings.es_index + '/_search', json={
-            'size': count, '_source': source,
-            'knn': {'field': 'embedding', 'query_vector': vector, 'k': count, 'num_candidates': min(10000, count * 5), 'filter': {'bool': {'filter': filters}}},
-        })['hits']['hits']
-        return semantic, keyword
+            condition += ' AND c.document_id=ANY(:docs)'
+        with self.connection() as conn:
+            # 过滤后的 HNSW 迭代扫描，避免权限范围较小时只拿到少量候选。
+            conn.execute(text("SET LOCAL hnsw.iterative_scan = 'strict_order'"))
+            conn.execute(text("SELECT set_config('hnsw.ef_search', :ef, true)"), {'ef': str(max(100, count))})
+            semantic = conn.execute(text(f'''SELECT c.id,c.payload,1-(c.embedding <=> CAST(:vector AS vector))/2 AS score
+                FROM knowledge_chunks c WHERE {condition}
+                ORDER BY c.embedding <=> CAST(:vector AS vector) LIMIT :count'''), params).mappings().all()
+            tokens = list(dict.fromkeys(keyword_tokens(query)))
+            keyword = []
+            if tokens:
+                params['query'] = ' | '.join(tokens)
+                # A/B/D 对应问题/标题/正文，权重比 3:2:1，避免 PostgreSQL 默认的 10:4:1 放大通用问法。
+                # normalization=32 将 ts_rank_cd 映射为 rank/(rank+1)，不能当作 BM25 或置信度。
+                keyword = conn.execute(text(f'''SELECT c.id,c.payload,ts_rank_cd(ARRAY[0.1,0.1,0.2,0.3]::real[],c.keywords,to_tsquery('simple',:query),32) AS score
+                    FROM knowledge_chunks c WHERE {condition} AND c.keywords @@ to_tsquery('simple',:query)
+                    ORDER BY score DESC,c.id LIMIT :count'''), params).mappings().all()
+        # 保留上层召回合并所需的候选结构，不影响前端和 Agent 的响应字段。
+        return tuple([{'_id': r['id'], '_source': r['payload'], '_score': r['score']} for r in rows] for rows in (semantic, keyword))
 
 
-# 按片段 ID 合并两路候选并去重，缺失分支按 0 计分。
-# 向量使用 ES 余弦分数，BM25 用 s/(s+8) 压缩，再按默认 0.8/0.2 加权。
-# 常数 8 是初始校准参数，最终分数不是置信度；同分按 ID 排序以稳定输出。
 def fuse(semantic, keyword, vector_weight=0.8, keyword_weight=0.2):
-    """Cosine ES score=(1+cos)/2; BM25 is saturated by s/(s+8). Not a probability."""
+    """两路均为 0～1 分数，默认按 0.8/0.2 融合；分数不是答案正确率。"""
     candidates = {}
     for branch, hits in [('vector_score', semantic), ('keyword_score', keyword)]:
         for hit in hits:
-            # 同一个片段在两路命中时共用一条结果，分别填入分数；未命中的那一路保持 0。
             row = candidates.setdefault(hit['_id'], {**hit['_source'], 'vector_score': 0.0, 'keyword_score': 0.0})
             score = max(0.0, float(hit.get('_score') or 0))
-            if not math.isfinite(score):
-                continue
-            # ES 余弦得分已映射到 0～1；BM25 没有固定上限，因此使用饱和函数压缩。
-            row[branch] = min(1.0, score) if branch == 'vector_score' else score / (score + 8.0)
-    # 融合只负责排序。阈值、最终 top_k 和权威状态校验由接口层处理。
+            if math.isfinite(score):
+                row[branch] = min(1.0, score)
     for row in candidates.values():
         row['score'] = vector_weight * row['vector_score'] + keyword_weight * row['keyword_score']
     return sorted(candidates.values(), key=lambda row: (-row['score'], row['id']))

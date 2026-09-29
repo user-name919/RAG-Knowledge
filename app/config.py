@@ -6,19 +6,18 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# 声明配置类型、默认值及维度边界。SQLite 仅为后备地址，Compose 会配置 MySQL。
+# 声明配置类型、默认值及维度边界。SQLite 仅为后备地址，Compose 会配置 PostgreSQL。
 class Settings(BaseSettings):
-    # 忽略 .env 中 MySQL/Compose 等不属于 Settings 的键，允许服务共用一份环境文件。
+    # 忽略 .env 中 PostgreSQL/Compose 等不属于 Settings 的键，允许服务共用一份环境文件。
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
     database_url: str = 'sqlite:///./data/rag.db'
     admin_api_key: str = ''
-    es_url: str = 'http://127.0.0.1:9200'
-    es_index: str = 'team-rag-bge-zh-v1'
+    retrieval_collection: str = 'team-rag-bge-zh-v1'
     embedding_base_url: str = 'https://api.siliconflow.cn/v1'
     embedding_model: str = 'BAAI/bge-large-zh-v1.5'
     embedding_api_key: str = ''
-    # 模型输出维度必须与 ES 映射完全相同；更换模型后应更换索引并重新向量化。
-    embedding_dimensions: int = Field(default=1024, ge=1, le=4096)
+    # 模型输出维度必须与 pgvector 列完全相同；更换模型后应更换索引并重新向量化。
+    embedding_dimensions: int = Field(default=1024, ge=1, le=2000)
     embedding_query_prefix: str = '为这个句子生成表示以用于检索相关文章：'
     # API 与 Worker 共享原文件目录；Compose 挂载持久化卷。
     upload_dir: str = 'data/uploads'

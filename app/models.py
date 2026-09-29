@@ -1,5 +1,5 @@
-# MySQL 权威数据模型：知识库 → 文档节点 → QA；索引任务绑定 QA 的具体版本。
-# ES 仅保存检索副本。版本、删除状态和授权最终以这些表为准。
+# PostgreSQL 权威数据模型：知识库 → 文档节点 → QA；索引任务绑定 QA 的具体版本。
+# 检索片段 仅保存检索副本。版本、删除状态和授权最终以这些表为准。
 
 from datetime import datetime
 from uuid import uuid4
@@ -14,7 +14,7 @@ def uid():
     return str(uuid4())
 
 
-# 统一以不含时区对象的 UTC 时间写入数据库，API/ES 展示时需按 UTC 解释。
+# 统一以不含时区对象的 UTC 时间写入数据库，API/检索索引 展示时需按 UTC 解释。
 def utcnow():
     return datetime.utcnow()
 
@@ -27,8 +27,8 @@ class KnowledgeBase(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
 
-# 文档节点是 QA 的容器；当前只存标题和来源地址，没有实现原始文件上传。
-# 软删除后节点及其 QA 不再通过召回校验，ES 清理由后台继续完成。
+# 文档节点保存公共标题与来源；上传文件的版本和磁盘路径由 document_files 扩展表管理。
+# 软删除后节点及其 QA 不再通过召回校验，索引清理由后台继续完成。
 class Document(Base):
     __tablename__ = 'documents'
     id = Column(String(36), primary_key=True, default=uid)

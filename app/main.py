@@ -1,6 +1,6 @@
 # FastAPI 接口层：知识管理、凭据管理、任务状态查询和混合召回。
 # 写入链路：保存 QA 与任务到同一事务 → Worker 建索引。
-# 查询链路：鉴权 → 模型向量化 → ES 双路检索 → MySQL 校验有效版本 → 返回原文。
+# 查询链路：鉴权 → 模型向量化 → PostgreSQL 双路检索 → PostgreSQL 校验有效版本 → 返回原文。
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,7 +25,7 @@ from .schemas import DocumentCreate, KBCreate, KeyCreate, QABatch, QAContent, Re
 from .search import SearchError, SearchStore, fuse
 
 
-# 服务启动时校验管理员凭据、创建缺失的表并确认 ES 索引配置。
+# 服务启动时校验管理员凭据、创建缺失的表并确认 检索索引配置。
 # create_all 不会迁移已有表结构；索引模型不匹配时应阻止启动，避免混用向量。
 @asynccontextmanager
 async def lifespan(app):
@@ -37,7 +37,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title='团队 RAG 知识库', version='0.2.0', lifespan=lifespan,
+app = FastAPI(title='团队 RAG 知识库', version='0.3.0', lifespan=lifespan,
               description='QA 入库、版本维护、索引任务和向量 0.8 + 关键词 0.2 混合召回。无答案生成。')
 app.add_middleware(UploadLimitMiddleware, max_bytes=get_settings().max_upload_bytes + 128 * 1024)
 app.include_router(file_router)
@@ -93,12 +93,12 @@ def add_task(db, qa):
     return task
 
 
-# 检查数据库查询和 ES 索引可访问性。embedding_configured 仅表示 Key 非空，不代表已成功调用模型。
+# 检查数据库查询和 检索索引可访问性。embedding_configured 仅表示 Key 非空，不代表已成功调用模型。
 @app.get('/health', tags=['运行状态'])
 def health(db: Session = Depends(get_db)):
     try:
         db.execute(text('SELECT 1'))
-        SearchStore().request('GET', '/' + get_settings().es_index + '/_count')
+        SearchStore().count()
     except Exception:
         raise HTTPException(503, 'Database or search service unavailable') from None
     return {'status': 'ok', 'embedding_configured': bool(get_settings().embedding_api_key)}
@@ -198,7 +198,7 @@ def create_qa_batch(kb_id: str, doc_id: str, body: QABatch, principal=Depends(au
     return {'object': 'list', 'data': results, 'note': 'Saved; wait for index_status=ready before recall'}
 
 
-# 查看文档下有效 QA 的权威原文，不从 ES 读取可能过期的副本。
+# 查看文档下有效 QA 的权威原文，不从 检索片段 读取可能过期的副本。
 @app.get('/v1/knowledge_bases/{kb_id}/documents/{doc_id}/qa_pairs', tags=['QA'])
 def list_qa(kb_id: str, doc_id: str, principal=Depends(authenticate), db: Session = Depends(get_db), offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200)):
     authorize(principal, [kb_id])
@@ -208,7 +208,7 @@ def list_qa(kb_id: str, doc_id: str, principal=Depends(authenticate), db: Sessio
 
 
 # 整体替换 QA 正文；内容真正变化时才递增版本并入队。
-# 版本变化立即让旧 ES 片段无法通过有效性校验，新版完成前该 QA 暂时不可召回。
+# 版本变化立即让旧 检索片段 片段无法通过有效性校验，新版完成前该 QA 暂时不可召回。
 @app.put('/v1/knowledge_bases/{kb_id}/documents/{doc_id}/qa_pairs/{qa_id}', tags=['QA'])
 def update_qa(kb_id: str, doc_id: str, qa_id: str, body: QAContent, principal=Depends(authenticate), db: Session = Depends(get_db)):
     authorize(principal, [kb_id], write=True)
@@ -227,7 +227,7 @@ def update_qa(kb_id: str, doc_id: str, qa_id: str, body: QAContent, principal=De
     return qa_payload(qa)
 
 
-# 幂等软删除单条 QA，同时创建新版本任务清理 ES；不等待清理完成才使记录失效。
+# 幂等软删除单条 QA，同时创建新版本任务清理 检索索引；不等待清理完成才使记录失效。
 @app.delete('/v1/knowledge_bases/{kb_id}/documents/{doc_id}/qa_pairs/{qa_id}', tags=['QA'])
 def delete_qa(kb_id: str, doc_id: str, qa_id: str, principal=Depends(authenticate), db: Session = Depends(get_db)):
     authorize(principal, [kb_id], write=True)
@@ -295,10 +295,10 @@ def retry_failed(kb_id: str, doc_id: str, principal=Depends(authenticate), db: S
     return {'retried': len(tasks)}
 
 
-# 批量读取候选对应的 MySQL 记录，过滤不存在、已删除、越权或版本不一致的 ES 副本。
+# 批量读取候选对应的 PostgreSQL 记录，过滤不存在、已删除、越权或版本不一致的 检索片段 副本。
 # 这一步保留融合排序，不重新打分；过滤后结果可能少于 top_k。
 def valid_candidates(db, candidates, kb_ids, document_ids, tags):
-    """DB is authoritative. Never return deleted, stale or out-of-scope ES records."""
+    """业务版本是权威来源；过滤已删除、过期或越权的检索片段。"""
     if not candidates:
         return []
     # 一次读取全部候选对应的 QA，避免对每个结果单独查询数据库。
@@ -370,5 +370,5 @@ def recall(body: RecallRequest, principal=Depends(authenticate), db: Session = D
     # 先确认原文有效，再应用融合后的阈值，最后截断 top_k；默认 0 阈值不保证拒绝无关资料。
     data = [dict(r, object='knowledge_base.document.chunk', type=r.get('type', 'qa')) for r in rows if r['score'] >= options.score_threshold][:options.top_k]
     return {'object': 'list', 'total': len(data), 'data': data,
-            'score_definition': '0.8*cosine_ES_score + 0.2*BM25/(BM25+8), with configured weights; missing branch=0; not confidence',
+            'score_definition': 'vector_weight*(1+cosine)/2 + keyword_weight*ts_rank_cd(normalization=32); field weights=3:2:1; missing branch=0; not confidence',
             'candidate_limit_per_branch': candidates}

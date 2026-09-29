@@ -17,7 +17,7 @@ import pytest
 
 class FileStore(FakeStore):
     # 模拟仅删除文档片段，不清理同节点的 QA。
-    def delete_document(self, document_id, before_version=None, exact_version=None):
+    def delete_document(self, document_id, before_version=None, exact_version=None, db=None):
         for key, row in list(self.records.items()):
             if row.get('type') != 'document' or row['document_id'] != document_id:
                 continue

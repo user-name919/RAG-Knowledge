@@ -1,4 +1,4 @@
-# 请求认证与知识库授权。管理员 Key 来自环境变量；普通 Key 在 MySQL 中只保存摘要。
+# 请求认证与知识库授权。管理员 Key 来自环境变量；普通 Key 在 PostgreSQL 中只保存摘要。
 # 认证结果不代表可以查询任意知识库，每个业务接口仍需调用 authorize 校验范围。
 
 from dataclasses import dataclass

@@ -1,7 +1,7 @@
-# 后台索引进程。使用 MySQL 任务表、行锁、租约和确定性 ES ID 实现可重试处理。
+# 后台索引进程。使用 PostgreSQL 任务表、行锁、租约和确定性 检索片段 ID 实现可重试处理。
 # 任务可能被重复执行，因此不能依赖“只执行一次”；需要通过版本和租约再次校验提交资格。
 
-"""Durable MySQL queue. Each task indexes one immutable QA revision."""
+"""Durable PostgreSQL queue. Each task indexes one immutable QA revision."""
 from datetime import timedelta
 import logging
 import time
@@ -40,7 +40,7 @@ def claim_task(factory=SessionLocal, task_model=IndexTask):
         return task.id, task.lease_token
 
 
-# 处理一次带租约的索引任务。外部模型和 ES 写入在初次读取事务之外执行，减少长时间占锁。
+# 处理一次带租约的索引任务。外部模型和 检索片段 写入在初次读取事务之外执行，减少长时间占锁。
 # 完成后重新锁定文档、QA、任务，校验租约所有者和版本，才能发布 indexed_version。
 def process_task(task_id, token, factory=SessionLocal, embedder=None, store=None):
     settings = get_settings()
@@ -58,7 +58,7 @@ def process_task(task_id, token, factory=SessionLocal, embedder=None, store=None
             deleting = qa.deleted or document.deleted
             chunks = [] if stale or deleting else qa_chunks(qa, document, settings)
 
-        # 没有任务时不主动调用 ES；有任务时先确保模型与索引结构兼容。
+        # 没有任务时不主动调用 检索索引；有任务时先确保模型与索引结构兼容。
         store.ensure_index()
         if not stale and not deleting:
             # 模型与批量索引属于可能耗时、可能部分成功的外部操作，不在初次读事务里持有锁。
@@ -77,15 +77,15 @@ def process_task(task_id, token, factory=SessionLocal, embedder=None, store=None
                 return
             # 任务已过期，只清理自己的版本。不能删整个 QA，否则可能破坏已完成的新版本。
             if qa.version != version:
-                store.delete_qa(qa_id, exact_version=version)
+                store.delete_qa(qa_id, exact_version=version, db=db)
                 task.status = 'superseded'
             elif qa.deleted or document.deleted:
-                store.delete_qa(qa_id)
-                # 仅在对应 ES 操作成功后推进索引版本，与任务 done 状态在同一 MySQL 事务提交。
+                store.delete_qa(qa_id, db=db)
+                # 仅在对应 检索片段 操作成功后推进索引版本，与任务 done 状态在同一 PostgreSQL 事务提交。
                 qa.indexed_version = version
                 task.status = 'done'
             else:
-                store.delete_qa(qa_id, before_version=version)
+                store.delete_qa(qa_id, before_version=version, db=db)
                 qa.indexed_version = version
                 task.status = 'done'
             task.last_error, task.lease_until = None, None
@@ -97,7 +97,7 @@ def process_task(task_id, token, factory=SessionLocal, embedder=None, store=None
             if task and task.lease_token == token and task.status == 'running':
                 task.last_error = safe_error[:500]
                 task.status = 'failed' if task.attempts >= settings.task_max_attempts else 'pending'
-                # 指数退避上限 300 秒，避免供应商或 ES 故障时不停重试。
+                # 指数退避上限 300 秒，避免供应商或 检索片段 故障时不停重试。
                 task.next_attempt_at = utcnow() + timedelta(seconds=min(300, 2 ** task.attempts * 5))
                 task.lease_until = None
         log.warning('Task %s: %s', task_id, safe_error)

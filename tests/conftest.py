@@ -1,5 +1,5 @@
 # 单元测试公共夹具。导入应用前切换到测试配置，避免访问开发数据库。
-# 测试通过依赖覆盖注入独立 SQLite 会话；MySQL 行锁语义另由集成脚本验证。
+# 测试通过依赖覆盖注入独立 SQLite 会话；PostgreSQL 行锁语义另由集成脚本验证。
 
 import os
 os.environ['DATABASE_URL'] = 'sqlite://'
@@ -26,7 +26,7 @@ def factory():
     engine.dispose()
 
 
-# 覆盖应用的会话依赖并使用测试管理员 Key；不用 lifespan，避免启动真实 ES。
+# 覆盖应用的会话依赖并使用测试管理员 Key；不用 lifespan，避免启动真实 检索索引。
 # 用例结束清除覆盖，保证后续测试不会继续使用已销毁的会话。
 @pytest.fixture
 def client(factory):
