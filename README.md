@@ -1,8 +1,20 @@
 # RAG-Knowledge · 团队 RAG 知识库后端
 
-第一阶段是一个独立的 QA 知识库后端：录入 → 后台向量化 → ES 索引 → 混合召回。Python/FastAPI + MySQL + Elasticsearch + 硅基流动 Embedding。不生成聊天答案，后续智能体调用 `recall` 即可。
+一个可以独立运行的团队知识库：QA 或文件入库 → 后台解析与向量化 → ES 混合召回。Python/FastAPI + MySQL + Elasticsearch + 硅基流动 Embedding，配套 Vue 3 上传与检索 Demo。后续智能体可直接调用 `recall`，本服务返回原文，不生成聊天答案。
 
-当前支持知识库、文档节点、批量 QA、更新删除、持久化索引任务、按知识库授权的 API Key、混合检索。**文档节点目前是 QA 容器，不是文件上传接口**；Markdown/PDF/Word 导入、正式管理页面和企业文档同步属于下一阶段。
+目前支持 Markdown、UTF-8 TXT、文本型 PDF 上传、替换、下载和删除，原生 QA、任务重试、知识库权限以及默认向量 0.8 + 关键词 0.2 的检索。
+
+## 使用上传页面
+
+启动后打开 <http://localhost:8000>，填写本地 `.env` 的 `ADMIN_API_KEY`（不是 Embedding Key）。创建或选择知识库，上传文件，等待状态变成“可检索”，然后进入“检索测试”输入问题。页面支持来源范围、top_k 和阈值设置，并显示命中原文、章节/PDF 页码及分数。
+
+- 文件最大 10 MB；PDF 最多 300 页；正文最多 100 万字符、1000 个片段。
+- Markdown 按标题组织；PDF 按页解析；长段落按模型实际 token 数切分，保留原文。
+- 扫描件需要先做 OCR；加密 PDF、Word/Excel 暂不支持。部分 PDF 页面无文字时会显示警告。
+- 替换文件后旧版本立即退出召回，等待新版完成索引；完全相同的替换不会重复向量化。
+- 原文件保存到 `upload_data` 卷，元数据与任务保存到 MySQL，检索副本在 ES。Embedding 会将文档片段发送到你配置的模型服务。
+- 浏览器 Key 只保留在内存，刷新后需要重新连接；只读 Key 可以检索和下载授权资料，不能上传。
+- 前端源码位于 `frontend/`。开发时执行 `npm ci && npm run dev`，Vite 将 API 请求代理到本机 8000 端口；Docker 构建时自动打包前端，由 FastAPI 同源提供。
 
 ## 快速启动
 
@@ -25,7 +37,7 @@ Docker 不在 PATH 时，可使用 `/Applications/Docker.app/Contents/Resources/
 
 `health.status=ok` 表示 MySQL、ES 可访问；`embedding_configured=true` 只表示配置了 Key，**不表示模型已通过实测**。
 
-MySQL、ES 使用持久化卷。`docker compose stop` 停止服务，`docker compose up -d` 恢复。`docker compose down` 保留数据卷；**不要加 `-v`，否则会删除数据卷**。
+MySQL、ES 和上传原文件使用持久化卷。`docker compose stop` 停止服务，`docker compose up -d` 恢复。`docker compose down` 保留数据卷；**不要加 `-v`，否则会删除数据卷**。
 
 当前配置仅用于本机开发：ES 未启用认证，端口绑定 `127.0.0.1`。上服务器前需要配置 TLS、网络隔离、备份、凭据管理及资源限制。不要直接改为公网监听。
 
@@ -56,7 +68,9 @@ docker compose up -d --force-recreate api worker
 | 方法 | 路径 | 行为 |
 |---|---|---|
 | POST / GET | `/v1/knowledge_bases` | 创建 / 列出知识库；创建需要管理员 |
-| POST / GET | `/v1/knowledge_bases/{kb}/documents` | 创建 / 列出 QA 文档节点 |
+| POST / GET | `/v1/knowledge_bases/{kb}/documents` | 创建 QA 节点 / 列出所有文档 |
+| POST | `/v1/knowledge_bases/{kb}/documents/upload` | multipart 上传 file、title、tags，返回 202 |
+| PUT / GET | `/v1/knowledge_bases/{kb}/documents/{doc}/file` | 替换 / 下载原文件 |
 | POST | `/v1/knowledge_bases/{kb}/documents/{doc}/qa_pairs/batch_create` | 批量保存最多 50 条 QA，返回 202 |
 | GET | `/v1/knowledge_bases/{kb}/documents/{doc}/qa_pairs` | 查看 QA 原文及版本 |
 | PUT / DELETE | `/v1/knowledge_bases/{kb}/documents/{doc}/qa_pairs/{qa}` | 整体更新 / 删除 QA |
@@ -117,7 +131,7 @@ docker compose up -d --force-recreate api worker
 - 分数不是正确率或置信度；初始阈值 0 不会主动拒绝语义不相关结果。需要用真实正例和无答案问题校准，不能直接把其他平台的 0.3 搬过来。
 - 本阶段未启用 rerank。不会接受一个参数却悄悄忽略它；额外字段会返回 422。
 
-该 BGE 模型上下文较短。第一版按 UTF-8 字节数保守限制单次输入不超过 480 字节，避免在线索引依赖下载 tokenizer。问法最多 80 字符，答案最多 12000 字符，长答案拆分；查询加前缀后超限返回 422。这个实现牺牲了一些片段长度，后续文档导入阶段应改为 tokenizer 感知的结构化切分。
+该 BGE 模型限制 512 tokens。项目内置其 tokenizer，QA 与文档片段包含标题/问法后控制在 480 tokens 内；查询加检索前缀后超 512 tokens 返回 422。tokenizer 版本与许可见 `app/assets/README.md`。切换模型时还必须同步更换 tokenizer 与长度规则。
 
 修改 Embedding 模型或维度，需要换一个 `ES_INDEX` 并重新索引数据；启动时检查模型和索引元数据，不会静默混用不同模型。当前尚无批量迁移命令。
 
@@ -146,7 +160,7 @@ docker compose up -d --force-recreate api worker
 
 源码主要在 `app/main.py`（接口）、`app/worker.py`（任务）、`app/search.py`（ES 与融合）、`app/embedding.py`（模型调用）。
 
-首次交付的验证结果见 `VERIFICATION.md` 和 `VERIFICATION_RESULTS.json`。云模型真实调用与测试夹具的结果分开记录。
+文件上传与 Vue Demo 的验证结果见 `VERIFICATION_DOCUMENTS.md`。首次交付的验证结果见 `VERIFICATION.md` 和 `VERIFICATION_RESULTS.json`。云模型真实调用与测试夹具的结果分开记录。
 
 ## 官方参考
 

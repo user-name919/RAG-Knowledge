@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # 模型输出维度必须与 ES 映射完全相同；更换模型后应更换索引并重新向量化。
     embedding_dimensions: int = Field(default=1024, ge=1, le=4096)
     embedding_query_prefix: str = '为这个句子生成表示以用于检索相关文章：'
+    # API 与 Worker 共享原文件目录；Compose 挂载持久化卷。
+    upload_dir: str = 'data/uploads'
+    max_upload_bytes: int = 10 * 1024 * 1024
+    max_document_chars: int = 1_000_000
+    max_document_chunks: int = 1000
     worker_poll_seconds: float = 2
     # 租约用于进程崩溃后的任务接管，并非模型请求超时；HTTP 请求另有 45 秒超时。
     task_lease_seconds: int = 900

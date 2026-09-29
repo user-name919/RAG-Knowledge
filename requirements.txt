@@ -12,3 +12,8 @@ httpx[socks]==0.28.1
 pydantic-settings==2.8.1
 # 本地自动化验证工具，当前与运行依赖共用清单。
 pytest==8.3.5
+
+# 文件表单解析、文本型 PDF 提取和 BGE tokenizer。
+python-multipart==0.0.20
+pypdf==6.19.0
+tokenizers==0.21.1

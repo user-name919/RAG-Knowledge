@@ -4,6 +4,7 @@ name: team-rag
 x-app-env: &app-env
   DATABASE_URL: mysql+pymysql://rag:${MYSQL_PASSWORD:?run scripts/init_env.py}@mysql:3306/rag?charset=utf8mb4
   ES_URL: http://elasticsearch:9200
+  UPLOAD_DIR: /app/data/uploads
 services:
   # 保存权威 QA、授权和任务队列；不在 MySQL 中执行向量检索。
   mysql:
@@ -50,6 +51,8 @@ services:
     # 加载本地凭据；environment 锚点覆盖其中的宿主机数据库/ES 地址。
     env_file: .env
     environment: *app-env
+    # API 写入原文件，Worker 从同一个持久化卷读取。
+    volumes: ["upload_data:/app/data/uploads"]
     ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
     depends_on:
       mysql: {condition: service_healthy}
@@ -66,6 +69,8 @@ services:
     build: .
     env_file: .env
     environment: *app-env
+    # API 写入原文件，Worker 从同一个持久化卷读取。
+    volumes: ["upload_data:/app/data/uploads"]
     # 覆盖 Dockerfile 默认的 Uvicorn 启动命令，改为索引任务循环。
     command: ["python", "-m", "app.worker"]
     depends_on:
@@ -75,3 +80,4 @@ services:
 volumes:
   mysql_data:
   es_data:
+  upload_data:

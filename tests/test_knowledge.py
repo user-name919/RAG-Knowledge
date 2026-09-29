@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 from app.chunks import qa_chunks
+from app.tokenization import token_count
 from app.config import get_settings
 from app.embedding import EmbeddingClient, EmbeddingError
 from app.main import valid_candidates
@@ -196,7 +197,7 @@ def test_document_delete_invalidates_all_chunks(client, factory):
     assert client.get(path + '/qa_pairs').status_code == 404
 
 
-# 混合中文、英文和 emoji 切分后内容可无损拼回，每个向量输入均符合字节预算。
+# 混合中文、英文和 emoji 切分后内容可无损拼回，每个向量输入均符合token 预算。
 def test_unicode_chunking_is_lossless_and_bounded(client, factory):
     _, doc_id, _, row, _ = seed(client)
     with factory() as db:
@@ -204,7 +205,7 @@ def test_unicode_chunking_is_lossless_and_bounded(client, factory):
         qa.answer = '中文😀\nEnglish 配置项 TASK_403 ' * 200
         chunks = qa_chunks(qa, db.get(Document, doc_id), get_settings())
         assert ''.join(c['content'].split('\n答：', 1)[1] for c in chunks) == qa.answer
-        assert all(len(c['embedding_text'].encode()) <= 480 for c in chunks)
+        assert all(token_count(c['embedding_text']) <= 480 for c in chunks)
         assert len({c['id'] for c in chunks}) == len(chunks)
 
 
@@ -251,7 +252,7 @@ def test_invalid_weights_and_long_queries_rejected(client):
     kb, _, _, _, _ = seed(client)
     r = client.post('/v1/knowledge_bases/recall', json={'knowledge_base_ids': [kb], 'query': 'test', 'weights': {'vector_setting': {'vector_weight': .8}, 'keyword_setting': {'vector_weight': .8}}})
     assert r.status_code == 422
-    r = client.post('/v1/knowledge_bases/recall', json={'knowledge_base_ids': [kb], 'query': '长' * 300})
+    r = client.post('/v1/knowledge_bases/recall', json={'knowledge_base_ids': [kb], 'query': '长' * 600})
     assert r.status_code == 422
 
 

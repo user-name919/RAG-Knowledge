@@ -81,11 +81,11 @@ class Weights(Input):
 
 
 # 召回输入：知识库必填；空 document_ids 表示不进一步限制文档。
-# query 的字符上限只是第一层校验，接口还会检查加前缀后的 UTF-8 字节预算。
+# query 的字符上限只是第一层校验，接口还会检查加前缀后的 模型 token 预算。
 class RecallRequest(Input):
     knowledge_base_ids: List[str] = Field(min_length=1, max_length=20)
     document_ids: List[str] = Field(default_factory=list, max_length=100)
-    query: str = Field(min_length=1, max_length=300)
+    query: str = Field(min_length=1, max_length=2000)
     retrieval_options: RetrievalOptions = Field(default_factory=RetrievalOptions)
     weights: Weights = Field(default_factory=Weights)
 

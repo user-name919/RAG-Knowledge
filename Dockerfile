@@ -1,3 +1,11 @@
+# 前端单独构建，最终镜像无需 Node；npm ci 使用锁文件保证依赖版本一致。
+FROM node:22-alpine AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 # 使用 Python 3.12 的精简镜像；Docker 在 Apple Silicon 上选择匹配的 ARM64 架构。
 FROM python:3.12-slim
 # 后续 COPY、依赖安装与运行命令都以 /app 为工作目录。
@@ -12,6 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN useradd --create-home --uid 10001 rag
 # 只复制应用代码；脚本和测试留在宿主机，.env 由 .dockerignore 排除。
 COPY --chown=rag:rag app ./app
+COPY --from=frontend --chown=rag:rag /frontend/dist ./app/ui
+RUN mkdir -p /app/data/uploads && chown -R rag:rag /app/data
 USER rag
 # 声明容器内部端口，真正暴露给宿主机的地址由 compose.yaml 控制。
 EXPOSE 8000

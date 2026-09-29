@@ -10,7 +10,8 @@ from .chunks import qa_chunks
 from .config import get_settings
 from .db import SessionLocal
 from .embedding import EmbeddingClient, EmbeddingError
-from .models import Document, IndexTask, QAPair, uid, utcnow
+from .models import Document, IndexTask, QAPair, FileIndexTask, uid, utcnow
+from .file_indexer import process_file_task
 from .search import SearchStore, SearchError
 
 log = logging.getLogger(__name__)
@@ -18,14 +19,14 @@ log = logging.getLogger(__name__)
 
 # 在短事务中领取到期 pending 或租约已过期的 running 任务。
 # SKIP LOCKED 跳过别的 Worker 正在锁定的行；每次领取生成新 token 并增加尝试次数。
-def claim_task(factory=SessionLocal):
+def claim_task(factory=SessionLocal, task_model=IndexTask):
     settings, now = get_settings(), utcnow()
     # 领取操作必须在事务内完成，锁定任务与更新租约一起提交。
     with factory() as db, db.begin():
-        task = db.scalar(select(IndexTask).where(or_(
-            and_(IndexTask.status == 'pending', IndexTask.next_attempt_at <= now),
-            and_(IndexTask.status == 'running', IndexTask.lease_until < now),
-        )).order_by(IndexTask.created_at).with_for_update(skip_locked=True).limit(1))
+        task = db.scalar(select(task_model).where(or_(
+            and_(task_model.status == 'pending', task_model.next_attempt_at <= now),
+            and_(task_model.status == 'running', task_model.lease_until < now),
+        )).order_by(task_model.created_at).with_for_update(skip_locked=True).limit(1))
         if not task:
             return None
         # 上限在领取前检查；手动重试会将 attempts 清零。
@@ -114,7 +115,11 @@ def main():
             claim = claim_task()
             if claim:
                 process_task(*claim)
-            else:
+            # 每轮两类任务各处理一个，避免 QA 队列持续有任务时饿死文件队列。
+            file_claim = claim_task(task_model=FileIndexTask)
+            if file_claim:
+                process_file_task(*file_claim)
+            if not claim and not file_claim:
                 time.sleep(get_settings().worker_poll_seconds)
         except Exception as exc:
             # 队列连接本身失败时，任务可能尚未领取；循环等待后继续，而不是直接退出进程。

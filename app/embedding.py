@@ -4,6 +4,7 @@
 import math
 import httpx
 from .config import get_settings
+from .tokenization import token_count
 
 
 # 外部模型故障的统一异常类型；API 转成 503，Worker 据此记录脱敏错误并重试。
@@ -25,9 +26,9 @@ class EmbeddingClient:
             raise EmbeddingError('EMBEDDING_API_KEY is not configured')
         # 文档输入保持原样，仅查询使用 BGE 的检索指令，不能给两端都盲目追加同一前缀。
         inputs = [settings.embedding_query_prefix + t if query else t for t in texts]
-        # Conservative UTF-8 byte bound: avoids exceeding this BGE model's 512-token window.
-        if any(not t or len(t.encode('utf-8')) > 480 for t in inputs):
-            raise EmbeddingError('Embedding input exceeds 480 UTF-8 bytes; shorten the query or re-chunk the content')
+        # 使用与当前 BGE 模型匹配的 tokenizer，包含特殊 token 后不超过 512。
+        if any(not t or token_count(t) > 512 for t in inputs):
+            raise EmbeddingError('Embedding input exceeds 512 tokens; shorten the query or re-chunk the content')
         vectors = []
         # 限制请求时长且禁止自动重定向，避免鉴权请求被意外发往其他地址。
         with httpx.Client(timeout=45, follow_redirects=False) as client:

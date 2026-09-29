@@ -8,3 +8,7 @@ __pycache__
 .pytest_cache
 # 不把本地运行数据烘焙进镜像。
 data
+
+**/node_modules
+frontend/dist
+app/ui

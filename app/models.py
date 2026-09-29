@@ -95,3 +95,37 @@ class APIKey(Base):
     knowledge_base_ids = Column(JSON, nullable=False)
     can_write = Column(Boolean, default=False, nullable=False)
     active = Column(Boolean, default=True, nullable=False)
+
+
+# 上传文件独立扩展表；不改旧 documents/qa_pairs 表，升级时保留既有 QA。
+# 原文件保存在服务端生成的路径，用户文件名仅用于展示和下载响应。
+class DocumentFile(Base):
+    __tablename__ = 'document_files'
+    document_id = Column(String(36), ForeignKey('documents.id'), primary_key=True)
+    filename = Column(String(255), nullable=False)
+    storage_path = Column(String(255), nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    tags = Column(JSON, nullable=False, default=list)
+    version = Column(Integer, default=1, nullable=False)
+    indexed_version = Column(Integer, default=0, nullable=False)
+    chunk_count = Column(Integer, default=0, nullable=False)
+    warnings = Column(JSON, nullable=False, default=list)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+
+# 文件任务使用单独队列，避免给旧 QA 任务改外键或破坏已有任务。
+class FileIndexTask(Base):
+    __tablename__ = 'file_index_tasks'
+    __table_args__ = (UniqueConstraint('document_id', 'version'), Index('ix_file_tasks_queue', 'status', 'next_attempt_at'))
+    id = Column(String(36), primary_key=True, default=uid)
+    document_id = Column(String(36), ForeignKey('documents.id'), nullable=False)
+    version = Column(Integer, nullable=False)
+    status = Column(String(20), default='pending', nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    next_attempt_at = Column(DateTime, default=utcnow, nullable=False)
+    lease_until = Column(DateTime, nullable=True)
+    lease_token = Column(String(36), nullable=True)
+    last_error = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)

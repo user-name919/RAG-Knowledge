@@ -44,6 +44,9 @@ class SearchStore:
                 **{k: {'type': 'keyword'} for k in ['id', 'qa_id', 'knowledge_base_id', 'document_id', 'tags', 'embedding_model']},
                 # cjk 为中文等文本生成词元；exact 子字段保留整值，但当前检索尚未使用它。
                 **{k: {'type': 'text', 'analyzer': 'cjk', 'fields': {'exact': {'type': 'keyword', 'ignore_above': 512}}} for k in ['title', 'question', 'stand_query', 'content']},
+                'type': {'type': 'keyword'},
+                'heading': {'type': 'text', 'analyzer': 'cjk'},
+                'page_number': {'type': 'integer'},
                 'version': {'type': 'integer'},
                 # 来源字段保留在 _source 用于追溯，不建立搜索索引。
                 'source_uri': {'type': 'keyword', 'index': False},
@@ -59,6 +62,10 @@ class SearchStore:
             existing = self.request('GET', '/' + s.es_index + '/_mapping')[s.es_index]['mappings']
             if existing.get('_meta') != mappings['_meta'] or existing['properties']['embedding']['dims'] != s.embedding_dimensions:
                 raise SearchError('Index model/schema mismatch; use a new ES_INDEX and reindex')
+            # 兼容旧 QA 索引，仅增补文件来源字段，不重建或删除原有记录。
+            additions = {key: mappings['properties'][key] for key in ('type', 'heading', 'page_number') if key not in existing['properties']}
+            if additions:
+                self.request('PUT', '/' + s.es_index + '/_mapping', json={'properties': additions})
 
     # 以 NDJSON 批量写入片段，确定性 _id 使同版本重试覆盖已有记录。
     # refresh=wait_for 等待搜索可见后再发布 MySQL 索引版本；HTTP 成功仍需检查批量子项错误。
@@ -86,6 +93,17 @@ class SearchStore:
         # 删除冲突不当作彻底成功，否则 MySQL 会错误地认为清理已经完成。
         if response.get('failures') or response.get('version_conflicts'):
             raise SearchError('Elasticsearch cleanup incomplete; retry needed')
+
+    # 文件片段和 QA 可以位于同一个节点；删除文件索引时明确限定 type。
+    def delete_document(self, document_id, before_version=None, exact_version=None):
+        filters = [{'term': {'document_id': document_id}}, {'term': {'type': 'document'}}]
+        if before_version is not None:
+            filters.append({'range': {'version': {'lt': before_version}}})
+        if exact_version is not None:
+            filters.append({'term': {'version': exact_version}})
+        response = self.request('POST', '/' + self.settings.es_index + '/_delete_by_query?refresh=true&conflicts=proceed', json={'query': {'bool': {'filter': filters}}})
+        if response.get('failures') or response.get('version_conflicts'):
+            raise SearchError('Document index cleanup incomplete')
 
     # 使用同一组过滤条件分别执行关键词和向量检索，返回两份 ES 命中列表。
     # count 是候选规模，不是最终 top_k；返回时排除向量，减少数据传输。

@@ -11,3 +11,8 @@ __pycache__/
 # 排除演示库 ID、本地评测结果和其他运行期数据。
 data/
 .DS_Store
+
+# 前端依赖和编译产物不入库。
+node_modules/
+frontend/dist/
+app/ui/
